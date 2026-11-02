@@ -620,6 +620,12 @@
           return;
         }
 
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          insertTimestamp();
+          return;
+        }
+
         if (event.key === '[' || event.key === '{') {
           event.preventDefault();
           seekBy(-normalizeSkipSeconds());
