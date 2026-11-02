@@ -81,9 +81,13 @@ video{width:100%;height:100%;object-fit:contain;background:#0b1a22;display:block
 .locked .ov{background:none}
 .lockrow{display:flex}
 .fs-wrap:fullscreen{border-radius:0}
+.stage:fullscreen{border:0;border-radius:0;background:#000}
+.stage:fullscreen video{background:#000}
 .stage{touch-action:none}
 .zchip{position:absolute;top:calc(118px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:4;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600}
-.zchip[hidden],.spin[hidden],.load[hidden]{display:none}
+.zchip[hidden],.spin[hidden],.load[hidden],.hud[hidden]{display:none}
+.hud{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:4;background:#000b;color:#fff;border-radius:16px;padding:12px 20px;font-size:17px;font-weight:600;text-align:center;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hud small{display:block;font-size:12px;font-weight:500;opacity:.75;margin-top:2px}
 .spin{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;border:5px solid #ffffff44;border-top-color:#a78bfa;animation:spinr .8s linear infinite;z-index:3;pointer-events:none}
 @keyframes spinr{to{transform:rotate(360deg)}}
 .load{margin:4px 18px 8px;padding:10px 12px;border-radius:12px;background:var(--chip);font-size:12px}
@@ -121,6 +125,7 @@ video{width:100%;height:100%;object-fit:contain;background:#0b1a22;display:block
 .cap span{display:inline-block;background:#000a;color:#fff;padding:.15em .55em;border-radius:6px;font-size:calc(var(--cs,1)*clamp(14px,2.2vw,26px));line-height:1.35;text-shadow:0 1px 2px #000}
 .sb{background:#ffffff26;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;text-align:center}
 .sb:hover{background:#ffffff40}
+.sb.on{background:var(--accent)}
 .subs{flex-direction:column;align-items:stretch;gap:10px;width:min(310px,84vw);background:#0d1118ee}
 .subs .row{display:flex;gap:6px;align-items:center}
 .subs .row .sb{flex:1}
@@ -180,6 +185,13 @@ video{background:#000}
     <button class="pill" id="rot" aria-label="Rotate video"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></button>
     <button class="pill" id="loop" aria-label="Repeat"><svg viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/></svg></button>
     <button class="pill" id="ccBtn" aria-label="Subtitles" style="font-size:13px">CC</button>
+    <button class="pill" id="setBtn" aria-label="Advanced settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <div class="pop subs" id="setpop">
+     <div class="row"><b style="flex:1">Advanced settings</b></div>
+     <div class="row"><span style="flex:1">Double-tap skip</span><input id="skipIn" type="number" min="1" max="600" step="1" value="10" inputmode="numeric" aria-label="Double-tap skip in seconds"><span>s</span></div>
+     <div class="row"><button class="sb" data-s="5">5</button><button class="sb" data-s="10">10</button><button class="sb" data-s="15">15</button><button class="sb" data-s="30">30</button><button class="sb" data-s="60">60</button></div>
+     <div class="s2">Double-tap the left third of the video to go back and the right third to go forward by this many seconds. Double-tap the middle to play or pause. Saved on this device.</div>
+    </div>
     <div class="pop subs" id="subpop">
      <div class="row"><b style="flex:1">Subtitles</b><label><input type="checkbox" id="subOn" checked> Show</label></div>
      <div class="s2" id="subStat">No subtitles loaded</div>
@@ -208,6 +220,7 @@ video{background:#000}
   </div>
  </div>
 <div class="spin" id="spin" hidden></div>
+<div class="hud" id="hud" hidden></div>
 <button class="zchip" id="zchip" hidden>Zoom 1.0× · Reset</button>
 <div class="dlg" id="dlg" hidden><div class="card"><div class="t"><b>Continue watching?</b></div><div class="s" id="dlgS"></div><button class="btn" id="dlgGo">Continue</button><button class="btn alt" id="dlgNew">Start over</button></div></div>
 <div class="cap" id="cap"></div>
@@ -309,13 +322,15 @@ function load(i,go){
   var sv=getProg(items[i]);
   if(go&&sv&&sv.t>5&&(!sv.d||sv.t<sv.d-8))askResume(sv);
   else if(go)v.play().catch(function(){});
-  render();
+  msMeta();render();
 }
 $('fileIn').onchange=function(e){addFiles(e.target.files,false);e.target.value=''};
 $('dirIn').onchange=function(e){addFiles(e.target.files,true);e.target.value=''};
 document.querySelectorAll('label.btn').forEach(function(l){l.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();l.querySelector('input').click()}}});
 
-function toggle(){if(idx<0){if(items.length)load(0,true);return}v.paused?v.play():v.pause()}
+var wantPlay=false;
+function userPause(){wantPlay=false;v.pause()}
+function toggle(){if(idx<0){if(items.length)load(0,true);return}v.paused?v.play():userPause()}
 $('play').onclick=toggle;
 v.onclick=function(){if(!lockOn)toggle()};
 v.onplay=function(){$('play').innerHTML=PAUSE;$('play').setAttribute('aria-label','Pause')};
@@ -331,7 +346,7 @@ bar.onchange=function(){seeking=false};
 
 var sp=0;
 $('spd').onclick=function(){sp=(sp+1)%speeds.length;v.playbackRate=speeds[sp];$('spd').textContent=speeds[sp]+'x'};
-$('volBtn').onclick=function(){$('subpop').classList.remove('show');$('pop').classList.toggle('show')};
+$('volBtn').onclick=function(){$('subpop').classList.remove('show');$('setpop').classList.remove('show');$('pop').classList.toggle('show')};
 $('vol').oninput=function(e){setVol(+e.target.value)};
 $('bri').oninput=function(e){v.style.filter='brightness('+e.target.value+')'};
 $('fit').onclick=function(){var c=v.style.objectFit==='cover';v.style.objectFit=c?'contain':'cover';$('fit').classList.toggle('on',!c)};
@@ -346,7 +361,13 @@ $('rot').onclick=function(){rot=(rot+90)%360;applyRot()};
 $('loop').onclick=function(){v.loop=!v.loop;$('loop').classList.toggle('on',v.loop)};
 $('audioBtn').onclick=function(){audioOnly=!audioOnly;stage.classList.toggle('audio',audioOnly)};
 $('pip').onclick=function(){if(document.pictureInPictureEnabled&&idx>=0){document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture().catch(function(){})}};
-$('full').onclick=function(){if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){})};
+/* Fullscreen: on desktop only the player (#stage) goes fullscreen, so the library panel is hidden, like VLC. Phones fullscreen the whole page. */
+$('full').onclick=function(){
+  if(document.fullscreenElement){document.exitFullscreen();return}
+  var el=coarse?document.documentElement:stage;
+  if(el.requestFullscreen)el.requestFullscreen().catch(function(){});
+};
+$('mid').addEventListener('dblclick',function(){if(!coarse&&!lockOn)$('full').click()});
 $('back').onclick=function(){closePlayer()};
 
 var lockBtn=$('lock');
@@ -418,7 +439,7 @@ function paintCap(){
   if(k!==lastKey){lastKey=k;cap.innerHTML=k>=0?'<span>'+cues[k].t+'</span>':''}
 }
 (function loop(){paintCap();requestAnimationFrame(loop)})();
-$('ccBtn').onclick=function(){$('pop').classList.remove('show');$('subpop').classList.toggle('show')};
+$('ccBtn').onclick=function(){$('pop').classList.remove('show');$('setpop').classList.remove('show');$('subpop').classList.toggle('show')};
 $('srtIn').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f)attachSrt(f)};
 $('srtLbl').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('srtIn').click()}};
 $('subOn').onchange=function(e){subOn=e.target.checked;lastKey=-2;status()};
@@ -466,7 +487,7 @@ document.addEventListener('visibilitychange',function(){if(document.hidden)saveN
 window.addEventListener('pagehide',function(){saveNow(true)});
 function pushPlayerState(){try{if(!pushed){history.pushState({p:1},'');pushed=true}}catch(e){}}
 function closePlayer(fromPop){
-  $('dlg').hidden=true;v.pause();$('app').classList.remove('playing');
+  $('dlg').hidden=true;userPause();$('app').classList.remove('playing');
   if(document.fullscreenElement)document.exitFullscreen();
   var was=pushed;pushed=false;
   if(was&&!fromPop)history.back();
@@ -479,7 +500,7 @@ $('mid').addEventListener('click',function(e){
   var now=Date.now(),r=this.getBoundingClientRect(),f=(e.clientX-r.left)/r.width;
   if(now-lastTap<300){
     clearTimeout(tapT);lastTap=0;
-    if(f<1/3)v.currentTime-=10;else if(f>2/3)v.currentTime+=10;else toggle();
+    if(f<1/3)skip(-1);else if(f>2/3)skip(1);else toggle();
   }else{
     lastTap=now;
     tapT=setTimeout(function(){if(stage.classList.contains('idle'))wake();else stage.classList.add('idle')},300);
@@ -510,6 +531,43 @@ function touchDone(e){
   if(zoom>1&&zoom<1.03)resetZoom();
 }
 stage.addEventListener('touchend',touchDone);stage.addEventListener('touchcancel',touchDone);
+/* ---- Swipe gestures: left side brightness, right side volume, horizontal seek ---- */
+var sg=null,hudT;
+function hud(h){var e=$('hud');e.innerHTML=h;e.hidden=false;clearTimeout(hudT)}
+function hudOff(){clearTimeout(hudT);hudT=setTimeout(function(){$('hud').hidden=true},650)}
+function clampR(el,x){return Math.max(+el.min,Math.min(+el.max,x))}
+stage.addEventListener('touchstart',function(e){
+  sg=null;
+  if(e.touches.length!==1||zoom>1||lockOn||e.target.id!=='mid'||!$('dlg').hidden)return;
+  var r=stage.getBoundingClientRect(),t=e.touches[0];
+  sg={x:t.clientX,y:t.clientY,mode:null,side:(t.clientX-r.left)<r.width/2?'bri':'vol',bri:+$('bri').value,vol:+$('vol').value,cur:v.currentTime,tgt:v.currentTime,H:r.height,W:r.width};
+},{passive:true});
+stage.addEventListener('touchmove',function(e){
+  if(!sg)return;
+  if(e.touches.length!==1){sg=null;$('hud').hidden=true;return}
+  var t=e.touches[0],dx=t.clientX-sg.x,dy=t.clientY-sg.y;
+  if(!sg.mode){
+    if(Math.hypot(dx,dy)<14)return;
+    if(Math.abs(dx)>Math.abs(dy)){if(!v.duration){sg=null;return}sg.mode='h'}else sg.mode='v';
+  }
+  e.preventDefault();
+  if(sg.mode==='v'){
+    var f=-dy/(sg.H*0.8);
+    if(sg.side==='bri'){var b=clampR($('bri'),sg.bri+f*1.0);$('bri').value=b;v.style.filter='brightness('+b+')';hud('Brightness<small>'+Math.round(b*100)+'%</small>')}
+    else{var x=clampR($('vol'),Math.round((sg.vol+f*1.5)*20)/20);$('vol').value=x;setVol(x);hud('Volume<small>'+Math.round(x*100)+'%</small>')}
+  }else{
+    var d=dx/sg.W*120;sg.tgt=Math.max(0,Math.min(v.duration,sg.cur+d));
+    var sec=Math.round(sg.tgt-sg.cur);
+    hud((sec<0?'\u2212':'+')+fmt(Math.abs(sec))+'<small>'+fmt(sg.tgt)+' / '+fmt(v.duration)+'</small>');
+  }
+},{passive:false});
+function sgDone(e){
+  if(!sg)return;
+  if(e.type==='touchend'&&sg.mode==='h')v.currentTime=sg.tgt;
+  if(sg.mode)hudOff();
+  sg=null;
+}
+stage.addEventListener('touchend',sgDone);stage.addEventListener('touchcancel',sgDone);
 $('zchip').onclick=resetZoom;
 stage.addEventListener('wheel',function(e){if(!e.ctrlKey)return;e.preventDefault();zoom=Math.max(1,Math.min(5,zoom-e.deltaY*0.01));if(zoom<1.02){zoom=1;tx=ty=0}clampPan();applyRot()},{passive:false});
 window.addEventListener('wheel',function(e){if(e.ctrlKey&&!stage.contains(e.target))e.preventDefault()},{passive:false});
@@ -537,6 +595,60 @@ function syncWide(){$('app').classList.toggle('wide',coarse&&innerWidth>innerHei
 vp();syncWide();
 window.addEventListener('resize',function(){vp();syncWide();applyRot()});
 window.addEventListener('orientationchange',function(){setTimeout(function(){vp();syncWide()},300)});
+/* ---- Background playback and lock-screen controls ---- */
+function msMeta(){
+  if(!('mediaSession' in navigator)||idx<0||typeof MediaMetadata==='undefined')return;
+  try{navigator.mediaSession.metadata=new MediaMetadata({title:items[idx].name.replace(/\.[^.]+$/,''),artist:'AMPM Player',album:items[idx].folder||'AMPM Player',
+    artwork:[{src:'icons/icon-192.png',sizes:'192x192',type:'image/png'},{src:'icons/icon-512.png',sizes:'512x512',type:'image/png'}]})}catch(e){}
+}
+function msPos(){
+  if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState||!isFinite(v.duration)||!v.duration)return;
+  try{navigator.mediaSession.setPositionState({duration:v.duration,playbackRate:v.playbackRate||1,position:Math.min(v.currentTime,v.duration)})}catch(e){}
+}
+(function(){
+  var ms=navigator.mediaSession;
+  if(ms){
+    var set=function(a,f){try{ms.setActionHandler(a,f)}catch(e){}};
+    set('play',function(){v.play().catch(function(){})});
+    set('pause',function(){userPause()});
+    set('stop',function(){userPause()});
+    set('previoustrack',function(){$('prev').onclick()});
+    set('nexttrack',function(){$('next').onclick()});
+    set('seekbackward',function(d){v.currentTime=Math.max(0,v.currentTime-((d&&d.seekOffset)||10))});
+    set('seekforward',function(d){v.currentTime=Math.min(v.duration||1e9,v.currentTime+((d&&d.seekOffset)||10))});
+    set('seekto',function(d){if(d&&d.seekTime!=null){v.currentTime=d.seekTime;msPos()}});
+  }
+  v.addEventListener('play',function(){wantPlay=true;if(ms)ms.playbackState='playing';msPos()});
+  v.addEventListener('pause',function(){
+    if(ms)ms.playbackState='paused';
+    /* if the phone paused us (screen off, app switch) and the person didn't, start again */
+    if(wantPlay&&document.hidden)setTimeout(function(){if(wantPlay&&v.paused&&!v.ended&&document.hidden)v.play().catch(function(){})},150);
+  });
+  ['loadedmetadata','seeked','ratechange'].forEach(function(n){v.addEventListener(n,msPos)});
+  document.addEventListener('visibilitychange',function(){
+    if(actx&&actx.state==='suspended'&&wantPlay)actx.resume();
+    if(document.hidden&&wantPlay&&v.paused&&!v.ended)v.play().catch(function(){});
+  });
+})();
+/* ---- Advanced settings: double-tap skip seconds ---- */
+var skipS=10;
+try{var sv0=parseInt(localStorage.getItem('ampm-set:skip'),10);if(sv0>=1&&sv0<=600)skipS=sv0}catch(e){}
+function skip(d){
+  if(!v.duration&&!v.currentTime)return;
+  v.currentTime=Math.max(0,Math.min(v.duration||1e9,v.currentTime+d*skipS));
+  hud((d<0?'\u2212':'+')+skipS+' s');hudOff();
+}
+function setSkip(n){
+  n=Math.round(+n);if(!(n>=1))n=1;if(n>600)n=600;
+  skipS=n;$('skipIn').value=n;
+  try{localStorage.setItem('ampm-set:skip',String(n))}catch(e){}
+  var b=document.querySelectorAll('#setpop [data-s]');for(var i=0;i<b.length;i++)b[i].classList.toggle('on',+b[i].dataset.s===n);
+}
+$('setBtn').onclick=function(){$('pop').classList.remove('show');$('subpop').classList.remove('show');$('setpop').classList.toggle('show')};
+$('skipIn').onchange=function(){setSkip(this.value)};
+$('skipIn').onkeydown=function(e){if(e.key==='Enter')this.blur()};
+document.querySelectorAll('#setpop [data-s]').forEach(function(b){b.onclick=function(){setSkip(b.dataset.s)}});
+setSkip(skipS);
 /* ---- Lock icon ---- */
 var LOCK_C='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 var LOCK_O='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
