@@ -10,7 +10,7 @@ Brand: **AMPM Player**. Logo is a purple gradient circle with a white play trian
 ## Files
 - `index.html`: the whole app (HTML, CSS and JS in one file, no libraries, no build step).
 - `manifest.webmanifest`: PWA name, colors, icons.
-- `sw.js`: service worker. Network-first, falls back to cache. **Bump `const C='ampm-v2'` whenever `index.html` changes** so phones pick up the update.
+- `sw.js`: service worker. Network-first, falls back to cache. **Bump `const C='ampm-v6'` whenever `index.html` changes** so phones pick up the update.
 - `icons/`: `icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png` (maskable and apple-touch are full-bleed squares with the triangle in the safe zone).
 - `README.md`: GitHub Pages and install steps for the owner.
 
@@ -40,6 +40,13 @@ One IIFE. Main state: `items[]`, `idx` (current), `folder`, `q`, `cues`, `off`, 
 - Browsers cannot keep access to picked files between visits, so the library is rebuilt each session. Resume still works because `key` matches the same file.
 - Inside `sw.js`, only same-origin requests are cached; blob video URLs are ignored on purpose.
 - Typography: use curly apostrophes and quotes in visible text.
+
+- Pinch zoom only affects the video (two fingers, drag to pan, "Reset" chip). Page zoom is blocked by the viewport meta, `touch-action`, and `gesturestart`.
+- The library shows an "Adding videos... x of y" bar (`#ldr`); the player shows a spinner (`#spin`) while loading or buffering.
+
+- Auto landscape: on phones, a wide video tries `screen.orientation.lock('landscape')`; if that is refused (iPhone, most browser tabs) the player is rotated 90 degrees with CSS (`.app.land`). Tap and pan maths account for the rotation. Portrait videos and desktop are untouched.
+
+- Thumbnails are made through a queue (2 at a time, `makeThumb` / `genThumb`), each hidden video is released when done, and list redraws are debounced (`renderSoon`). Do not go back to creating one video per file at once.
 
 ## Not done yet (ideas, in rough priority)
 1. Create folders and move videos into them on phones.
