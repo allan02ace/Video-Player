@@ -10,7 +10,7 @@ Brand: **AMPM Player**. Logo is a purple gradient circle with a white play trian
 ## Files
 - `index.html`: the whole app (HTML, CSS and JS in one file, no libraries, no build step).
 - `manifest.webmanifest`: PWA name, colors, icons.
-- `sw.js`: service worker. Network-first, falls back to cache. **Bump `const C='ampm-v6'` whenever `index.html` changes** so phones pick up the update.
+- `sw.js`: service worker. Network-first, falls back to cache. **Bump `const C='ampm-v9'` whenever `index.html` changes** so phones pick up the update.
 - `icons/`: `icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png` (maskable and apple-touch are full-bleed squares with the triangle in the safe zone).
 - `README.md`: GitHub Pages and install steps for the owner.
 
@@ -44,9 +44,15 @@ One IIFE. Main state: `items[]`, `idx` (current), `folder`, `q`, `cues`, `off`, 
 - Pinch zoom only affects the video (two fingers, drag to pan, "Reset" chip). Page zoom is blocked by the viewport meta, `touch-action`, and `gesturestart`.
 - The library shows an "Adding videos... x of y" bar (`#ldr`); the player shows a spinner (`#spin`) while loading or buffering.
 
-- Auto landscape: on phones, a wide video tries `screen.orientation.lock('landscape')`; if that is refused (iPhone, most browser tabs) the player is rotated 90 degrees with CSS (`.app.land`). Tap and pan maths account for the rotation. Portrait videos and desktop are untouched.
+- No auto landscape: the player never locks or forces orientation. For wide videos the user turns on auto-rotate on their phone and physically rotates it; `.app.wide` still applies when the window is really wider than tall. (The old `screen.orientation.lock` and CSS `.app.land` forced rotation were removed.)
 
 - Thumbnails are made through a queue (2 at a time, `makeThumb` / `genThumb`), each hidden video is released when done, and list redraws are debounced (`renderSoon`). Do not go back to creating one video per file at once.
+
+- Full screen: on touch devices opening a video calls `requestFullscreen` on the page (enterFS) and leaving the player exits it. This hides the status bar on Android. iPhone Safari does not allow it for web pages, so the status bar stays (the player draws under it and keeps controls clear of it). 
+
+- Wide layout: `.app.wide` (real landscape) left-aligns the pills and centres prev/play/next over the video. `#probe` and `--fw/--fh` are still set on resize but no longer used by any CSS.
+- Lock button swaps between an open and a closed padlock and turns purple while locked.
+- Volume slider goes to 300%. Above 100% (or once boosted) it uses a Web Audio gain plus a limiter. The audio graph is created lazily because on iPhone Web Audio follows the silent switch while normal video does not.
 
 ## Not done yet (ideas, in rough priority)
 1. Create folders and move videos into them on phones.
