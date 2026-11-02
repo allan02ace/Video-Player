@@ -1,0 +1,1659 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AMPM Player</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: sidebar | main (transcript + player stacked), sidebar expands on demand */
+  :root {
+    --bg:      #f2eefb;
+    --panel:   #ffffff;
+    --ink:     #1a1730;
+    --muted:   #6b6a80;
+    --chip:    #ebe5fa;
+    --line:    #ddd6f5;
+    --accent:  #6d28d9;
+    --acc-fg:  #ffffff;
+    --frame:   #1a1030;
+    --shadow:  rgba(20,14,46,0.13);
+    --lib-w:   68px;
+    --lib-exp: 240px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:    #120e1f;
+      --panel: #1c1730;
+      --ink:   #ede8ff;
+      --muted: #9490b0;
+      --chip:  #2a2248;
+      --line:  #2e2950;
+      --frame: #0a0714;
+      --shadow: rgba(0,0,0,0.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:    #120e1f;
+    --panel: #1c1730;
+    --ink:   #ede8ff;
+    --muted: #9490b0;
+    --chip:  #2a2248;
+    --line:  #2e2950;
+    --frame: #0a0714;
+    --shadow: rgba(0,0,0,0.4);
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.5 "Inter", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  button, input, textarea { font: inherit; }
+  button { cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
+
+  /* ── App shell ─────────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: var(--lib-w) minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    height: 100dvh;
+    padding: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    gap: 12px;
+    max-width: 1800px;
+    margin: 0 auto;
+    transition: grid-template-columns 0.2s ease;
+  }
+  .app.lib-open {
+    grid-template-columns: var(--lib-exp) minmax(0, 1fr);
+  }
+
+  /* ── Library sidebar ────────────────────────────────────── */
+  .lib {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    background: var(--panel);
+    border: 2px solid var(--frame);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px var(--shadow);
+    overflow: hidden;
+    transition: opacity 0.15s;
+  }
+
+  .lib-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .logo {
+    width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
+    background: linear-gradient(135deg, #a78bfa, #6d28d9);
+    position: relative;
+  }
+  .logo::before {
+    content: "";
+    position: absolute;
+    left: 9px; top: 7px;
+    width: 0; height: 0;
+    border-left: 11px solid #fff;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+  }
+  .brand-name {
+    font-size: 13px; font-weight: 700; letter-spacing: .04em;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .app.lib-open .brand-name { opacity: 1; }
+
+  .lib-tools {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center;
+    background: var(--chip); color: var(--ink);
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .icon-btn:hover { background: var(--line); }
+  .icon-btn.active {
+    background: var(--accent); color: var(--acc-fg);
+  }
+  .icon-btn.icon-row {
+    display: flex;              /* was inheriting display:grid, which stacked icon above label */
+    align-items: center;
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 8px;
+    overflow: hidden;
+    line-height: 1;
+    text-align: left;
+  }
+  .icon-btn.icon-row > span[aria-hidden="true"] {
+    flex: 0 0 18px;
+    width: 18px;
+    text-align: center;
+    font-size: 15px;
+  }
+  .app:not(.lib-open) .icon-btn.icon-row { justify-content: center; padding: 0; }
+  .app:not(.lib-open) .icon-btn.icon-row .btn-label { display: none; }
+  .icon-btn.icon-row .btn-label {
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s; overflow: hidden;
+  }
+  .app.lib-open .icon-btn.icon-row .btn-label { opacity: 1; }
+
+  /* Library list */
+  .lib-body {
+    display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
+  }
+  .library-scroll {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 4px 6px;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .video-item {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 8px 6px; border-radius: 10px; text-align: left;
+    transition: background 0.1s;
+  }
+  .video-item:hover { background: var(--chip); }
+  .video-item.active { background: var(--accent); color: var(--acc-fg); }
+  .thumb {
+    width: 28px; height: 28px; flex-shrink: 0; border-radius: 6px;
+    background: var(--chip); display: grid; place-items: center; overflow: hidden;
+  }
+  .video-item.active .thumb { background: rgba(255,255,255,.2); }
+  .thumb .bar {
+    width: 10px; height: 10px; border-radius: 50%;
+    border-left: 8px solid var(--accent);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-radius: 0;
+  }
+  .video-item.active .thumb .bar { border-left-color: #fff; }
+  .meta { min-width: 0; }
+  .meta strong { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta span { font-size: 10px; color: var(--muted); }
+  .video-item.active .meta span { color: rgba(255,255,255,.7); }
+
+  .add-box {
+    padding: 8px 6px 10px;
+    border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .add-btn {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; width: 100%;
+    background: var(--chip); border-radius: 9px;
+    padding: 7px 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: background 0.1s;
+    white-space: nowrap; overflow: hidden;
+  }
+  .add-btn:hover { background: var(--line); }
+  .add-btn span { font-size: 14px; }
+
+  /* collapsed state: only icon */
+  .app:not(.lib-open) .library-scroll,
+  .app:not(.lib-open) .add-box,
+  .app:not(.lib-open) .brand-name {
+    display: none;
+  }
+
+  /* ── Right column ───────────────────────────────────────── */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    min-width: 0;
+  }
+  /* ── Transcript pane ────────────────────────────────────── */
+  .transcript-pane {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-height: 0;
+    background: var(--panel);
+    border: 2px solid var(--frame);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px var(--shadow);
+    overflow: hidden;
+    transition: flex 0.2s;
+  }
+  .transcript-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .transcript-head strong { font-size: 14px; font-weight: 700; }
+  .head-tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  .mini-btn {
+    background: var(--chip); color: var(--ink);
+    padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    transition: background 0.1s;
+  }
+  .mini-btn:hover { background: var(--line); }
+  .mini-btn.primary { background: var(--accent); color: var(--acc-fg); }
+  .mini-btn.primary:hover { background: #5b21b6; }
+
+  .skip-box {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--muted);
+    background: var(--chip); border-radius: 8px; padding: 5px 7px;
+  }
+  .skip-box input {
+    width: 46px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--ink);
+    padding: 3px 5px; font-size: 12px; text-align: center;
+  }
+
+  /* ── Speaker bar ── */
+  .speaker-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 8px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .spk-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--chip); border-radius: 20px;
+    padding: 3px 6px 3px 4px; font-size: 12px; font-weight: 600;
+    user-select: none; transition: background 0.1s;
+  }
+  .spk-chip:hover { background: var(--line); }
+  .spk-chip .num {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); color: var(--acc-fg);
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+  .spk-chip .x { opacity: .45; padding: 0 3px; font-size: 14px; line-height: 1; }
+  .spk-chip .x:hover { opacity: 1; }
+  .spk-add {
+    border: 1px dashed var(--muted); border-radius: 20px;
+    background: var(--bg); color: var(--ink);
+    padding: 4px 10px; font-size: 12px; width: 170px; outline: none;
+  }
+  .spk-add:focus { border-style: solid; border-color: var(--accent); }
+  .spk-hint { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+  /* Wrapper lets a highlight bar sit behind the (transparent) textarea */
+  .editor-wrap {
+    position: relative;
+    flex: 1; min-height: 0;
+    overflow: hidden;
+  }
+  .line-hl {
+    position: absolute; top: 0; left: 0;
+    pointer-events: none; z-index: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    box-shadow: inset 3px 0 0 var(--accent);
+    will-change: transform;
+  }
+  #transcriptText {
+    position: relative; z-index: 1;
+    height: 100%;
+    width: 100%; border: 0; resize: none;
+    background: transparent; color: var(--ink);
+    padding: 14px 16px;
+    font: 500 13.5px/1.65 "Inter", sans-serif;
+    outline: none;
+  }
+  #transcriptText::placeholder { color: var(--muted); }
+
+  .transcript-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 16px 12px; border-top: 1px solid var(--line); flex-shrink: 0;
+  }
+  #tsStatus { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Player / stage ─────────────────────────────────────── */
+  .stage {
+    background: var(--panel);
+    border: 2px solid var(--frame);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px var(--shadow);
+    padding: 12px 14px;
+    flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  video { display: none; }
+
+  .empty-player {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-align: center; color: var(--muted);
+    font-size: 13px; padding: 20px;
+  }
+  .empty-player[hidden] { display: none; }
+  .add-file-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent); color: var(--acc-fg);
+    border-radius: 9px; padding: 6px 12px;
+    font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .add-file-btn:hover { background: #5b21b6; }
+  .add-file-btn.big { font-size: 14px; padding: 12px 22px; border-radius: 12px; }
+  .player-controls { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--chip); border-radius: 10px; padding: 6px 10px;
+  }
+  .video-title {
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+  .group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .control-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--chip);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 700; color: var(--ink);
+    transition: background 0.1s;
+  }
+  .control-btn:hover { background: var(--line); }
+  .control-btn.play {
+    width: 34px; height: 34px; flex-shrink: 0;
+    background: var(--accent); color: var(--acc-fg); font-size: 14px;
+  }
+  .control-btn.play:hover { background: #5b21b6; }
+
+  .controls-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--chip); border-radius: 10px; padding: 8px 10px;
+  }
+
+  .seek {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--muted); flex: 1; min-width: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .seek input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+
+  /* Timestamp bookmarks under the seek bar */
+  .seek-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .seek-wrap input[type="range"] { flex: none; width: 100%; margin: 0; }
+  .seek-marks { position: relative; height: 12px; }
+  .seek-mark {
+    position: absolute; top: 0; width: 10px; height: 12px; margin-left: -5px;
+    padding: 0; border: 0; background: transparent; cursor: pointer;
+  }
+  .seek-mark::before {
+    content: ""; position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+    width: 3px; height: 9px; border-radius: 2px; background: var(--muted); opacity: .75;
+  }
+  .seek-mark:hover::before { background: var(--accent); opacity: 1; width: 4px; }
+  .seek-mark.last::before { background: var(--accent); opacity: 1; width: 4px; height: 12px; }
+  .last-stamp-btn {
+    flex-shrink: 0; height: 28px; padding: 0 10px; border: 0; border-radius: 8px;
+    background: var(--accent); color: var(--acc-fg); font: inherit; font-size: 11px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .last-stamp-btn:disabled { background: var(--chip); color: var(--muted); cursor: default; opacity: .6; }
+
+  /* A-B loop between timestamps */
+  .loop-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .topbar .video-title { flex: 1; }
+  .loop-row label { display: flex; align-items: center; gap: 6px; }
+  .loop-btn {
+    height: 26px; padding: 0 10px; border: 0; border-radius: 8px; cursor: pointer;
+    background: var(--line); color: var(--ink); font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap;
+  }
+  .loop-btn:hover { filter: brightness(.95); }
+  .loop-btn[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
+  .loop-row select {
+    height: 26px; min-width: 64px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 11px; padding: 0 6px;
+  }
+  .loop-row select:disabled { opacity: .5; }
+  .loop-band {
+    position: absolute; bottom: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); opacity: .85; pointer-events: none;
+  }
+
+  /* Zoomable timeline (waveform + ruler) */
+  .tl-row {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--chip); border-radius: 10px; padding: 8px 10px;
+  }
+  .tl-head {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .tl-time { font-size: 12px; white-space: nowrap; }
+  .tl-sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
+  .tl-title { font-weight: 700; color: var(--ink); margin-right: 2px; }
+  .tl-btn {
+    height: 24px; min-width: 28px; padding: 0 8px; border-radius: 7px;
+    background: var(--line); color: var(--ink); font-size: 12px; font-weight: 700; line-height: 1;
+  }
+  .tl-btn:hover { filter: brightness(.95); }
+  .tl-info { margin-left: auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-wrap { position: relative; height: 72px; border-radius: 8px; background: var(--panel); overflow: hidden; }
+  #tlCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; }
+  #tlCanvas.panning { cursor: grabbing; }
+
+  .boost {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted); flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .boost input[type="range"] { width: 90px; accent-color: var(--accent); }
+  .boost output { width: 34px; text-align: right; }
+
+  /* ── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    html, body { overflow: auto; }
+    .app {
+      grid-template-columns: 1fr !important;
+      grid-template-rows: auto;
+      height: auto; min-height: 100dvh;
+      padding-block: 12px;
+      gap: 10px;
+    }
+    /* On mobile the lib becomes a top nav bar */
+    .lib {
+      width: 100%;
+      flex-direction: column;
+      border-radius: 14px;
+    }
+    .lib-head {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+    }
+    /* Brand always visible on mobile */
+    .brand-name { opacity: 1 !important; }
+
+    /* Tools row: compact icon-only buttons */
+    .lib-tools {
+      flex-direction: row;
+      gap: 6px;
+    }
+    /* Override the desktop full-width row behaviour */
+    .icon-btn.icon-row {
+      width: 34px !important;
+      padding: 0 !important;
+      justify-content: center !important;
+    }
+    .icon-btn.icon-row .btn-label { display: none !important; }
+
+    /* Library body visible when lib-open */
+    .app:not(.lib-open) .library-scroll,
+    .app:not(.lib-open) .add-box { display: none; }
+    .app.lib-open .lib-body { display: flex; }
+    .library-scroll { max-height: 220px; }
+
+    .right-col { flex-direction: column; }
+    .transcript-pane { min-height: 240px; flex: none; height: 50vh; }
+    .stage { flex-shrink: 0; }
+  }
+</style>
+
+<div class="app" id="app">
+  <!-- Library sidebar -->
+  <aside class="lib" aria-label="Library">
+    <div class="lib-head">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <span class="brand-name">AMPM</span>
+      </div>
+      <div class="lib-tools">
+        <button class="icon-btn icon-row" id="libToggle" aria-label="Toggle library" type="button">
+          <span aria-hidden="true">☰</span>
+          <span class="btn-label">Library</span>
+        </button>
+        <button class="icon-btn icon-row" id="themeBtn" aria-label="Toggle theme" type="button">
+          <span aria-hidden="true">☼</span>
+          <span class="btn-label">Theme</span>
+        </button>
+      </div>
+    </div>
+    <div class="lib-body">
+      <div class="library-scroll" id="library">
+        <div class="empty-lib" style="padding:16px 8px;color:var(--muted);font-size:12px;text-align:center;">No media added yet</div>
+      </div>
+      <div class="add-box">
+        <label class="add-btn">
+          <span aria-hidden="true">＋</span> Add video/audio
+          <input id="fileIn" type="file" accept="video/*,audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.wma,.aiff,.webm,.mp4,.m4v,.mov,.mkv,.avi,.mpeg,.mpg" multiple hidden>
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right column: transcript + player -->
+  <div class="right-col">
+    <aside class="transcript-pane" aria-label="Transcript editor">
+      <div class="transcript-head">
+        <strong>Transcript</strong>
+        <div class="head-tools">
+          <label class="skip-box" aria-label="Skip seconds">
+            Skip
+            <input id="skipInput" type="number" min="1" max="60" step="1" value="2">
+            s
+          </label>
+          <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
+        </div>
+      </div>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <div class="transcript-footer">
+        <div id="tsStatus">No media loaded</div>
+      </div>
+    </aside>
+
+    <main class="stage" aria-label="Player">
+      <video id="video" playsinline></video>
+      <div class="empty-player" id="emptyPlayer">
+        <button class="add-file-btn big" id="addFileBtn" type="button"><span aria-hidden="true">＋</span> Add video / audio file</button>
+      </div>
+      <div class="player-controls" id="controls" hidden>
+        <div class="topbar">
+          <button class="add-file-btn" id="addFileBtnBar" type="button" title="Add video/audio file"><span aria-hidden="true">＋</span> Add</button>
+          <div class="video-title" id="videoTitle">—</div>
+          <div class="loop-row" id="loopRow">
+            <button class="loop-btn" id="loopBtn" type="button" aria-pressed="false" title="Loop between two timestamps (L)">⟲ Loop</button>
+            <label>From <select id="loopA" aria-label="Loop start timestamp" disabled></select></label>
+            <label>to <select id="loopB" aria-label="Loop end timestamp" disabled></select></label>
+          </div>
+        </div>
+        <!-- Seek bar is no longer shown: the timeline below does the seeking and shows the timestamp flags.
+             The elements stay (hidden) because the script still reads them. -->
+        <div hidden>
+          <input id="seekBar" type="range" min="0" max="1000" value="0" aria-label="Seek">
+          <div class="seek-marks" id="seekMarks"></div>
+        </div>
+        <div class="tl-row" id="tlRow">
+          <div class="tl-head">
+            <button class="control-btn play" id="playBtn" title="Play/Pause" type="button">▶</button>
+            <span class="tl-time"><span id="currentTime">0:00</span> / <span id="totalTime">0:00</span></span>
+            <button class="last-stamp-btn" id="lastStampBtn" type="button" disabled title="Jump to the last timestamp in the transcript">⇥ Last</button>
+            <label class="boost" title="Volume boost (up to 300%)">
+              <span aria-hidden="true">🔊</span>
+              <input id="boostBar" type="range" min="0" max="300" step="5" value="100" aria-label="Volume boost">
+              <output id="boostVal">100%</output>
+            </label>
+            <span class="tl-sep" aria-hidden="true"></span>
+            <span class="tl-title">Timeline</span>
+            <button class="tl-btn" id="tlOut" type="button" title="Zoom out (-)" aria-label="Zoom out">−</button>
+            <button class="tl-btn" id="tlIn" type="button" title="Zoom in (+)" aria-label="Zoom in">＋</button>
+            <button class="tl-btn" id="tlFit" type="button" title="Show whole file (double-click the timeline)">Fit</button>
+            <span class="tl-info" id="tlInfo" title="Wheel = zoom · Shift+wheel or Shift+drag = pan · click/drag = seek"></span>
+          </div>
+          <div class="tl-wrap"><canvas id="tlCanvas" aria-label="Zoomable timeline"></canvas></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const libraryEl = document.getElementById('library');
+    const emptyPlayerEl = document.getElementById('emptyPlayer');
+  const controlsEl = document.getElementById('controls');
+  const videoTitleEl = document.getElementById('videoTitle');
+  const seekBar = document.getElementById('seekBar');
+  const seekMarksEl = document.getElementById('seekMarks');
+  const lastStampBtn = document.getElementById('lastStampBtn');
+  const currentTimeEl = document.getElementById('currentTime');
+  const totalTimeEl = document.getElementById('totalTime');
+  const transcriptTextEl = document.getElementById('transcriptText');
+  const tsStatusEl = document.getElementById('tsStatus');
+  const appEl = document.getElementById('app');
+  const skipInput = document.getElementById('skipInput');
+
+  const state = {
+    items: [],
+    activeIndex: -1,
+    libOpen: false,
+    skipSeconds: 2,
+    boost: 100,
+    dark: false
+  };
+
+  // ── Helpers ───────────────────────────────────────────────
+  function normalizeSkip() {
+    const v = Number(skipInput.value);
+    state.skipSeconds = Number.isFinite(v) ? Math.max(1, Math.min(60, Math.round(v))) : 2;
+    skipInput.value = String(state.skipSeconds);
+    return state.skipSeconds;
+  }
+
+  function fmtTime(s) {
+    if (!Number.isFinite(s) || s < 0) return '0:00';
+    const t = Math.floor(s);
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const sec = t % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      : `${m}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function cleanName(n) { return n.replace(/\.[^/.]+$/, ''); }
+
+  // ── Render ────────────────────────────────────────────────
+  function applyClasses() {
+    appEl.classList.toggle('lib-open', state.libOpen);
+
+    document.getElementById('libToggle').classList.toggle('active', state.libOpen);
+  }
+
+  function renderLibrary() {
+    libraryEl.innerHTML = '';
+    if (!state.items.length) {
+      const el = document.createElement('div');
+      el.style.cssText = 'padding:16px 8px;color:var(--muted);font-size:12px;text-align:center';
+      el.textContent = 'No media added yet';
+      libraryEl.appendChild(el);
+      return;
+    }
+    state.items.forEach((item, idx) => {
+      const btn = document.createElement('button');
+      btn.className = `video-item ${state.activeIndex === idx ? 'active' : ''}`;
+      btn.type = 'button';
+      btn.innerHTML = `
+        <div class="thumb"><div class="bar"></div></div>
+        <div class="meta">
+          <strong></strong>
+          <span>${item.type === 'video' ? '🎬 Video' : '🎵 Audio'}</span>
+        </div>`;
+      btn.querySelector('strong').textContent = item.name;
+      btn.onclick = () => loadItem(idx, true);
+      libraryEl.appendChild(btn);
+    });
+  }
+
+  // ── Media ─────────────────────────────────────────────────
+  function addFiles(fileList) {
+    Array.from(fileList || []).forEach(file => {
+      if (!file) return;
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv)$/i.test(file.name);
+      const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|wma|aiff)$/i.test(file.name);
+      if (!isVideo && !isAudio) return;
+      const key = `${file.name}|${file.size}|${file.lastModified}`;
+      if (state.items.some(i => i.key === key)) return;
+      state.items.push({ key, name: cleanName(file.name), url: URL.createObjectURL(file), type: isVideo ? 'video' : 'audio', file });
+    });
+    renderLibrary();
+    if (state.items.length && state.activeIndex === -1) loadItem(0, false);
+    // auto-open library when files are added
+    if (state.items.length) {
+      state.libOpen = true;
+      applyClasses();
+    }
+  }
+
+  function loadItem(index, autoplay) {
+    if (index < 0 || index >= state.items.length) return;
+    state.activeIndex = index;
+    const item = state.items[index];
+    video.src = item.url;
+    videoTitleEl.textContent = item.name;
+    emptyPlayerEl.hidden = true;
+    controlsEl.hidden = false;
+    tsStatusEl.textContent = item.name;
+    updatePlaybackUI();
+    renderBookmarks();
+    tlLoadPeaks(item);
+    if (autoplay) video.play().catch(() => {});
+    renderLibrary();
+  }
+
+  // ── Volume boost (Web Audio, up to 300%) ──────────────────
+  // video.volume tops out at 100%, so the element is routed through a gain node
+  // followed by a compressor that tames clipping at high boost.
+  let audioCtx = null, gainNode = null;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+      const src = audioCtx.createMediaElementSource(video);
+      gainNode = audioCtx.createGain();
+      const comp = audioCtx.createDynamicsCompressor();
+      comp.threshold.value = -8;
+      comp.knee.value = 8;
+      comp.ratio.value = 8;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.25;
+      src.connect(gainNode).connect(comp).connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    gainNode.gain.value = state.boost / 100;
+  }
+
+  function setBoost(pct) {
+    state.boost = Math.max(0, Math.min(300, Math.round(pct / 5) * 5));
+    document.getElementById('boostBar').value = state.boost;
+    document.getElementById('boostVal').textContent = state.boost + '%';
+    if (state.boost !== 100 || audioCtx) ensureAudio();
+  }
+
+  function togglePlay() {
+    if (state.activeIndex < 0) return;
+    if (video.paused) video.play().catch(() => {});
+    else video.pause();
+  }
+
+  function seekBy(s) {
+    if (!video.duration) return;
+    video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + s));
+  }
+
+  function updatePlaybackUI() {
+    document.getElementById('playBtn').textContent = video.paused ? '▶' : '⏸';
+    currentTimeEl.textContent = fmtTime(video.currentTime || 0);
+    totalTimeEl.textContent = fmtTime(video.duration || 0);
+    if (video.duration) seekBar.value = (video.currentTime / video.duration) * 1000;
+    if (state.items[state.activeIndex]) tsStatusEl.textContent = state.items[state.activeIndex].name;
+  }
+
+  function insertTimestamp() {
+    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
+    const stamp = `[${fmtTime(video.currentTime || 0)}] `;
+    const s = transcriptTextEl.selectionStart;
+    const e = transcriptTextEl.selectionEnd;
+    transcriptTextEl.value = transcriptTextEl.value.slice(0, s) + stamp + transcriptTextEl.value.slice(e);
+    transcriptTextEl.focus();
+    transcriptTextEl.setSelectionRange(s + stamp.length, s + stamp.length);
+    tsStatusEl.textContent = `Inserted ${stamp.trim()}`;
+  }
+
+  // ── Current-line highlight ────────────────────────────────
+  // A textarea can't style one line, so a bar is drawn behind the transparent
+  // textarea at the same pixel offset as the line the caret is on.
+  const editorWrap = document.createElement('div');
+  editorWrap.className = 'editor-wrap';
+  const lineHl = document.createElement('div');
+  lineHl.className = 'line-hl';
+  lineHl.hidden = true;
+  transcriptTextEl.parentNode.insertBefore(editorWrap, transcriptTextEl);
+  editorWrap.append(lineHl, transcriptTextEl);
+
+  let hlDocTop = 0;
+
+  function positionLineHighlight() {
+    lineHl.style.transform = `translateY(${hlDocTop - transcriptTextEl.scrollTop}px)`;
+  }
+
+  function updateLineHighlight() {
+    const ta = transcriptTextEl;
+    if (!ta.value && document.activeElement !== ta) { lineHl.hidden = true; return; }
+    const pos = ta.selectionStart || 0;
+    const start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
+    let end = ta.value.indexOf('\n', pos);
+    if (end < 0) end = ta.value.length;
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    hlDocTop = offsetOfChar(start);
+    lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px';
+    lineHl.style.width = ta.clientWidth + 'px';
+    lineHl.hidden = false;
+    positionLineHighlight();
+  }
+
+  transcriptTextEl.addEventListener('input', updateLineHighlight);
+  transcriptTextEl.addEventListener('keyup', updateLineHighlight);
+  transcriptTextEl.addEventListener('click', updateLineHighlight);
+  transcriptTextEl.addEventListener('focus', updateLineHighlight);
+  transcriptTextEl.addEventListener('blur', updateLineHighlight);
+  transcriptTextEl.addEventListener('scroll', positionLineHighlight);
+  document.addEventListener('selectionchange', () => {
+    if (document.activeElement === transcriptTextEl) updateLineHighlight();
+  });
+  window.addEventListener('resize', updateLineHighlight);
+  window.addEventListener('load', updateLineHighlight);
+  new ResizeObserver(updateLineHighlight).observe(transcriptTextEl);
+  updateLineHighlight();
+
+  // ── Speakers ──────────────────────────────────────────────
+  // Nine numbered slots. Alt+1…9 (or clicking a chip) starts a new turn:
+  //   [m:ss] NAME:
+  // Ctrl+number can't be used: Chrome/Edge reserve it for switching tabs.
+  const SPK_KEY = 'ampm.speakers';
+  let speakers = Array(9).fill('');
+  try {
+    const saved = JSON.parse(localStorage.getItem(SPK_KEY) || 'null');
+    if (Array.isArray(saved)) speakers = Array.from({ length: 9 }, (_, i) => (typeof saved[i] === 'string' ? saved[i] : ''));
+  } catch (_) {}
+  function saveSpeakers() { try { localStorage.setItem(SPK_KEY, JSON.stringify(speakers)); } catch (_) {} }
+
+  const speakerBar = document.createElement('div');
+  speakerBar.className = 'speaker-bar';
+  const spkInput = document.createElement('input');
+  spkInput.className = 'spk-add';
+  spkInput.type = 'text';
+  spkInput.placeholder = '+ Add speaker (Enter)';
+  spkInput.setAttribute('aria-label', 'Add speaker');
+  const spkHint = document.createElement('span');
+  spkHint.className = 'spk-hint';
+  spkHint.textContent = 'Alt + 1–9';
+  speakerBar.append(spkInput, spkHint);
+  editorWrap.parentNode.insertBefore(speakerBar, editorWrap);
+  transcriptTextEl.placeholder += '\n  Alt + 1–9 — insert speaker (new line + timestamp)';
+
+  function renderSpeakers() {
+    speakerBar.querySelectorAll('.spk-chip').forEach(c => c.remove());
+    speakers.forEach((name, slot) => {
+      if (!name) return;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'spk-chip';
+      chip.title = 'Click to insert · double-click to rename';
+      const num = document.createElement('span'); num.className = 'num'; num.textContent = String(slot + 1);
+      const label = document.createElement('span'); label.textContent = name;
+      const x = document.createElement('span'); x.className = 'x'; x.textContent = '×'; x.title = 'Remove';
+      chip.append(num, label, x);
+      chip.addEventListener('mousedown', e => e.preventDefault()); // keep caret in the editor
+      chip.addEventListener('click', e => {
+        if (e.target === x) { speakers[slot] = ''; saveSpeakers(); renderSpeakers(); return; }
+        insertSpeaker(slot);
+      });
+      chip.addEventListener('dblclick', e => {
+        if (e.target === x) return;
+        const v = window.prompt(`Rename speaker ${slot + 1}`, name);
+        if (v === null) return;
+        const n = v.trim().replace(/:+$/, '').toUpperCase();
+        if (n) { speakers[slot] = n; saveSpeakers(); renderSpeakers(); }
+      });
+      speakerBar.insertBefore(chip, spkInput);
+    });
+  }
+
+  function addSpeaker(raw) {
+    const name = raw.trim().replace(/:+$/, '').toUpperCase();
+    if (!name) return;
+    if (speakers.includes(name)) { tsStatusEl.textContent = `${name} already added`; return; }
+    const slot = speakers.findIndex(s => !s);
+    if (slot < 0) { tsStatusEl.textContent = 'All 9 speaker slots are used'; return; }
+    speakers[slot] = name;
+    saveSpeakers();
+    renderSpeakers();
+    tsStatusEl.textContent = `${name} = Alt+${slot + 1}`;
+  }
+
+  spkInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addSpeaker(spkInput.value); spkInput.value = ''; }
+    else if (e.key === 'Escape') { spkInput.blur(); }
+  });
+
+  function insertSpeaker(slot) {
+    const name = speakers[slot];
+    if (!name) { tsStatusEl.textContent = `Speaker ${slot + 1} is empty — add one first`; return; }
+    const ta = transcriptTextEl;
+    const v = ta.value;
+    const label = name + ': ';
+    const pos = Math.min(ta.selectionStart || 0, v.length);
+    const lineStart = pos === 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = v.indexOf('\n', pos);
+    if (lineEnd < 0) lineEnd = v.length;
+    const line = v.slice(lineStart, lineEnd);
+    const sm = line.match(/^\s*\[[\d:]+\]\s*/);
+    const stampPart = sm ? sm[0] : '';
+    const rest = line.slice(stampPart.length);
+    const hasMedia = !!state.items[state.activeIndex];
+    const newStamp = hasMedia ? `[${fmtTime(video.currentTime || 0)}] ` : '';
+
+    let from, to, text;
+    const existing = speakers.filter(Boolean).map(n => n + ':').find(l => rest.startsWith(l));
+    if (existing) {
+      // Line already has a speaker: swap it, keep timestamp and text.
+      from = lineStart + stampPart.length;
+      to = from + existing.length + (rest[existing.length] === ' ' ? 1 : 0);
+      text = label;
+    } else if (!rest.trim()) {
+      // Empty (or timestamp-only) line: fill it in.
+      from = lineStart; to = lineEnd;
+      text = (stampPart ? stampPart.trim() + ' ' : newStamp) + label;
+    } else if (pos === lineEnd) {
+      // Caret at the end of a finished line: start a new turn below.
+      from = to = lineEnd;
+      text = '\n' + newStamp + label;
+    } else {
+      // Caret elsewhere in an unlabeled line: tag that line.
+      from = to = lineStart + stampPart.length;
+      text = label;
+    }
+
+    ta.focus();
+    ta.setSelectionRange(from, to);
+    // execCommand keeps Ctrl+Z working; fall back to setRangeText if unavailable.
+    if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+      ta.setRangeText(text, from, to, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    updateLineHighlight();
+    tsStatusEl.textContent = `Speaker ${slot + 1}: ${name}`;
+  }
+
+  renderSpeakers();
+
+  // ── Transcript follows playback ───────────────────────────
+  // Finds the timestamped line ([m:ss] or [h:mm:ss]) matching the current
+  // media time and scrolls the transcript editor to it.
+  let lastSyncLine = -1;
+  let suppressSyncUntil = 0; // set when the user clicks a timestamp, so the editor doesn't jump under the cursor
+
+  function parseStamps(text) {
+    const stamps = [];
+    let pos = 0;
+    text.split('\n').forEach((line, i) => {
+      const m = line.match(/\[(?:(\d+):)?(\d{1,2}):(\d{2})\]/);
+      if (m) {
+        const t = (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]);
+        stamps.push({ time: t, start: pos, end: pos + line.length, line: i });
+      }
+      pos += line.length + 1;
+    });
+    return stamps;
+  }
+
+  // Pixel offset of a character index inside the textarea (handles wrapped lines).
+  function offsetOfChar(index) {
+    const ta = transcriptTextEl;
+    const cs = getComputedStyle(ta);
+    const mirror = document.createElement('div');
+    mirror.style.cssText =
+      `position:absolute;visibility:hidden;top:0;left:-9999px;white-space:pre-wrap;` +
+      `overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:${ta.clientWidth}px;` +
+      `font:${cs.font};letter-spacing:${cs.letterSpacing};` +
+      `padding:${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft};`;
+    mirror.textContent = ta.value.slice(0, index);
+    const marker = document.createElement('span');
+    marker.textContent = '\u200b';
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+    const top = marker.offsetTop;
+    document.body.removeChild(mirror);
+    return top;
+  }
+
+  function syncTranscriptToTime(force) {
+    if (!state.items[state.activeIndex]) return;
+    if (performance.now() < suppressSyncUntil) return;
+    const stamps = parseStamps(transcriptTextEl.value);
+    if (!stamps.length) return;
+    const now = (video.currentTime || 0) + 0.25;
+    let best = null;
+    for (const s of stamps) {
+      if (s.time <= now && (!best || s.time >= best.time)) best = s;
+    }
+    if (!best) return;
+    if (!force && best.line === lastSyncLine) return;
+    lastSyncLine = best.line;
+
+    const ta = transcriptTextEl;
+    const top = Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3);
+    ta.scrollTo({ top, behavior: force ? 'auto' : 'smooth' });
+
+    // When not typing, park the caret at the end of that line so Pause + edit lands there.
+    if (document.activeElement !== ta) {
+      ta.setSelectionRange(best.end, best.end);
+    }
+    updateLineHighlight();
+  }
+
+  // ── Reverse find: click a timestamp → audio jumps there ───
+  // Only a click on a [m:ss] token seeks. Scrolling, arrow keys and typing never move the audio.
+  function stampAtCaret(pos) {
+    const v = transcriptTextEl.value;
+    const lineStart = pos === 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = v.indexOf('\n', pos);
+    if (lineEnd < 0) lineEnd = v.length;
+    const line = v.slice(lineStart, lineEnd);
+    const re = /\[(?:(\d+):)?(\d{1,2}):(\d{2})\]/g;
+    let m;
+    while ((m = re.exec(line))) {
+      const s = lineStart + m.index;
+      const e = s + m[0].length;
+      if (pos >= s && pos <= e) {
+        const time = (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]);
+        return { time, text: m[0], line: v.slice(0, lineStart).split('\n').length - 1 };
+      }
+    }
+    return null;
+  }
+
+  transcriptTextEl.addEventListener('click', () => {
+    const ta = transcriptTextEl;
+    if (ta.selectionStart !== ta.selectionEnd) return;          // user is selecting text
+    if (!state.items[state.activeIndex]) return;                 // nothing loaded
+    const hit = stampAtCaret(ta.selectionStart);
+    if (!hit) return;
+    suppressSyncUntil = performance.now() + 600;
+    lastSyncLine = hit.line;
+    const dur = Number.isFinite(video.duration) ? video.duration : hit.time;
+    video.currentTime = Math.max(0, Math.min(dur, hit.time));
+    tsStatusEl.textContent = `Jumped to ${hit.text}`;
+  });
+  transcriptTextEl.placeholder += '\n  Click a [timestamp] — audio jumps to it';
+
+  // ── Timestamp bookmarks on the seek bar ───────────────────
+  // Every [m:ss] in the transcript becomes a small flag under the seek bar; click one to jump there.
+  // "Last" jumps to the final timestamp in the transcript (where the user stopped typing).
+  const THUMB = 16; // px, native range thumb width; keeps flags aligned with the thumb centre
+  let marksTimer = 0;
+
+  function seekToStamp(time) {
+    if (!state.items[state.activeIndex]) return;
+    const dur = Number.isFinite(video.duration) ? video.duration : time;
+    video.currentTime = Math.max(0, Math.min(dur, time));
+    tsStatusEl.textContent = `Jumped to [${fmtTime(time)}]`;
+  }
+
+  function renderBookmarks() {
+    const dur = video.duration;
+    const stamps = state.items[state.activeIndex] ? parseStamps(transcriptTextEl.value) : [];
+    seekMarksEl.querySelectorAll('.seek-mark').forEach(n => n.remove());
+    refreshLoopOptions(stamps);
+    tlStamps = stamps;
+    tlDraw();
+    if (!stamps.length) {
+      lastStampBtn.disabled = true;
+      lastStampBtn.textContent = '⇥ Last';
+      return;
+    }
+    const last = stamps[stamps.length - 1];
+    lastStampBtn.disabled = false;
+    lastStampBtn.textContent = `⇥ Last ${fmtTime(last.time)}`;
+    if (!Number.isFinite(dur) || dur <= 0) return;
+
+    const seen = new Set();
+    const frag = document.createDocumentFragment();
+    stamps.slice(-400).forEach(st => {
+      if (st.time > dur || seen.has(st.time)) return;
+      seen.add(st.time);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.tabIndex = -1;
+      b.className = 'seek-mark' + (st === last ? ' last' : '');
+      b.style.left = `calc(${THUMB / 2}px + (100% - ${THUMB}px) * ${st.time / dur})`;
+      b.title = fmtTime(st.time);
+      b.setAttribute('aria-label', `Jump to ${fmtTime(st.time)}`);
+      b.addEventListener('click', () => seekToStamp(st.time));
+      frag.appendChild(b);
+    });
+    seekMarksEl.appendChild(frag);
+    updateLoopBand();
+  }
+  function scheduleBookmarks() { clearTimeout(marksTimer); marksTimer = setTimeout(renderBookmarks, 150); }
+
+  lastStampBtn.addEventListener('click', () => {
+    const stamps = parseStamps(transcriptTextEl.value);
+    if (stamps.length) seekToStamp(stamps[stamps.length - 1].time);
+  });
+  transcriptTextEl.addEventListener('input', scheduleBookmarks);
+  video.addEventListener('loadedmetadata', renderBookmarks);
+  video.addEventListener('durationchange', renderBookmarks);
+
+  // ── A-B loop between timestamps ───────────────────────────
+  // Pick two timestamps from the transcript (From / to) and switch Loop on: playback jumps
+  // back to From whenever it reaches to. "End of file" is available as the end point.
+  const loopBtn = document.getElementById('loopBtn');
+  const loopASel = document.getElementById('loopA');
+  const loopBSel = document.getElementById('loopB');
+  const loop = { on: false, a: null, b: null }; // seconds; b === Infinity means end of file
+  const LOOP_END = 'end';
+  let loopRaf = 0;
+
+  function loopEndTime() { return loop.b === Infinity ? (video.duration || 0) : loop.b; }
+
+  function refreshLoopOptions(stamps) {
+    const times = [...new Set(stamps.map(s => s.time))].sort((x, y) => x - y);
+    const prevA = loopASel.value, prevB = loopBSel.value;
+    loopASel.textContent = ''; loopBSel.textContent = '';
+    times.forEach(t => {
+      const oa = document.createElement('option'); oa.value = String(t); oa.textContent = fmtTime(t); loopASel.appendChild(oa);
+      const ob = document.createElement('option'); ob.value = String(t); ob.textContent = fmtTime(t); loopBSel.appendChild(ob);
+    });
+    const oe = document.createElement('option'); oe.value = LOOP_END; oe.textContent = 'End of file'; loopBSel.appendChild(oe);
+    // keep earlier choices if they still exist
+    if (prevA && [...loopASel.options].some(o => o.value === prevA)) loopASel.value = prevA;
+    if (prevB && [...loopBSel.options].some(o => o.value === prevB)) loopBSel.value = prevB;
+    const usable = times.length > 0 && !!state.items[state.activeIndex];
+    loopASel.disabled = loopBSel.disabled = !usable;
+    loopBtn.disabled = !usable;
+    if (!usable && loop.on) setLoop(false);
+    readLoopSelects();
+  }
+
+  function readLoopSelects() {
+    loop.a = loopASel.value === '' ? null : Number(loopASel.value);
+    loop.b = loopBSel.value === '' ? null : (loopBSel.value === LOOP_END ? Infinity : Number(loopBSel.value));
+    updateLoopBand();
+  }
+
+  function updateLoopBand() {
+    tlDraw();
+    let band = seekMarksEl.querySelector('.loop-band');
+    const dur = video.duration;
+    const valid = loop.on && loop.a != null && loop.b != null && Number.isFinite(dur) && dur > 0 && loopEndTime() > loop.a;
+    if (!valid) { if (band) band.remove(); return; }
+    if (!band) { band = document.createElement('div'); band.className = 'loop-band'; seekMarksEl.appendChild(band); }
+    const f1 = Math.min(1, loop.a / dur), f2 = Math.min(1, loopEndTime() / dur);
+    band.style.left = `calc(${THUMB / 2}px + (100% - ${THUMB}px) * ${f1})`;
+    band.style.width = `calc((100% - ${THUMB}px) * ${f2 - f1})`;
+  }
+
+  function loopTick() {
+    loopRaf = 0;
+    if (!loop.on || video.paused) return;
+    const end = loopEndTime();
+    const ct = video.currentTime;
+    // Only wrap when playback runs past the end point; a deliberate seek far outside the loop is left alone.
+    if (end > loop.a && ct >= end - 0.03 && ct < end + 1) video.currentTime = loop.a;
+    loopRaf = requestAnimationFrame(loopTick);
+  }
+  function startLoopTick() { if (loop.on && !loopRaf) loopRaf = requestAnimationFrame(loopTick); }
+
+  function setLoop(on) {
+    if (on) {
+      if (!state.items[state.activeIndex] || loopASel.disabled) { tsStatusEl.textContent = 'Add timestamps to the transcript first'; return; }
+      readLoopSelects();
+      // First use (or an invalid range): start at the timestamp just behind the playhead, end at the next one.
+      if (loop.a == null || loop.b == null || loopEndTime() <= loop.a) {
+        const times = [...loopASel.options].map(o => Number(o.value));
+        const now = video.currentTime || 0;
+        let a = times[0];
+        for (const t of times) if (t <= now + 0.25) a = t;
+        const next = times.find(t => t > a);
+        loopASel.value = String(a);
+        loopBSel.value = next != null ? String(next) : LOOP_END;
+        readLoopSelects();
+        if (loopEndTime() <= loop.a) { tsStatusEl.textContent = 'Pick an end point after the start'; return; }
+      }
+    }
+    loop.on = on;
+    loopBtn.setAttribute('aria-pressed', String(on));
+    loopBtn.textContent = on ? '⟲ Looping' : '⟲ Loop';
+    updateLoopBand();
+    if (on) {
+      tsStatusEl.textContent = `Looping [${fmtTime(loop.a)}] → ${loop.b === Infinity ? 'end' : '[' + fmtTime(loop.b) + ']'}`;
+      const end = loopEndTime();
+      if (video.currentTime < loop.a || video.currentTime >= end) video.currentTime = loop.a;
+      startLoopTick();
+    }
+  }
+
+  loopBtn.addEventListener('click', () => setLoop(!loop.on));
+  [loopASel, loopBSel].forEach(sel => sel.addEventListener('change', () => {
+    readLoopSelects();
+    if (loop.on) {
+      if (loopEndTime() <= loop.a) { setLoop(false); tsStatusEl.textContent = 'Loop off: end must be after start'; return; }
+      video.currentTime = loop.a;
+    }
+  }));
+  video.addEventListener('play', startLoopTick);
+  video.addEventListener('ended', () => {
+    if (loop.on && loop.a != null && loop.b === Infinity) { video.currentTime = loop.a; video.play().catch(() => {}); }
+  });
+
+  // ── Zoomable timeline ─────────────────────────────────────
+  // A canvas under the main controls: time ruler, waveform, transcript timestamps, loop range and playhead.
+  // The view is a window { start, span } in seconds. Wheel zooms around the cursor, Shift+wheel / Shift+drag /
+  // middle-drag pans, click or drag seeks. While playing, the window pages along with the playhead.
+  // The waveform is decoded locally (8 kHz, never uploaded) into min/max peaks with a coarser-level pyramid.
+  const tlCanvas = document.getElementById('tlCanvas');
+  const tlCtx = tlCanvas.getContext('2d');
+  const tlInfoEl = document.getElementById('tlInfo');
+  const tl = { start: 0, span: 0, drag: null, holdUntil: 0, hoverX: null, raf: 0 };
+  let tlStamps = [];
+  let tlColorCache = null;
+  const TL_MIN_SPAN = 2;          // seconds visible at maximum zoom
+  const PEAKS_PER_SEC = 100;      // base waveform resolution
+  const PEAK_RATE = 8000;         // decode sample rate (keeps memory small)
+  const PEAK_MAX_BYTES = 120 * 1024 * 1024;
+  const TL_STEPS = [[0.1,2],[0.2,2],[0.5,5],[1,2],[2,2],[5,5],[10,5],[15,3],[30,3],[60,4],[120,4],[300,5],[600,5],[900,3],[1800,3],[3600,4],[7200,4]];
+
+  function tlDur() { return Number.isFinite(video.duration) ? video.duration : 0; }
+
+  function tlClamp() {
+    const dur = tlDur();
+    if (dur <= 0) { tl.start = 0; tl.span = 0; return; }
+    const minSpan = Math.min(TL_MIN_SPAN, dur);
+    tl.span = Math.max(minSpan, Math.min(dur, tl.span || dur));
+    tl.start = Math.max(0, Math.min(dur - tl.span, tl.start));
+  }
+
+  function tlColors() {
+    if (!tlColorCache) {
+      const cs = getComputedStyle(document.documentElement);
+      const g = n => cs.getPropertyValue(n).trim();
+      tlColorCache = { ink: g('--ink'), muted: g('--muted'), line: g('--line'), accent: g('--accent'), acc: g('--acc-fg'), panel: g('--panel') };
+    }
+    return tlColorCache;
+  }
+
+  function tlLabel(t, step) {
+    if (step >= 1) return fmtTime(t);
+    const r = Math.round(t * 10) / 10, s = Math.floor(r);
+    return fmtTime(s) + '.' + Math.round((r - s) * 10);
+  }
+
+  function tlDraw() {
+    const c = tlCanvas, ctx = tlCtx;
+    const w = c.clientWidth, h = c.clientHeight;
+    if (!w || !h) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const col = tlColors();
+    const item = state.items[state.activeIndex];
+    const dur = tlDur();
+    ctx.font = '600 10px Inter, "Segoe UI", sans-serif';
+    ctx.textBaseline = 'middle';
+    if (!item || dur <= 0) {
+      ctx.fillStyle = col.muted; ctx.textAlign = 'center';
+      ctx.fillText(item ? 'Loading…' : 'Add a file to see the timeline', w / 2, h / 2);
+      return;
+    }
+    tlClamp();
+    // Page along with playback (unless the user just zoomed/panned by hand).
+    if (!video.paused && !tl.drag && performance.now() > tl.holdUntil && tl.span < dur - 0.01) {
+      const t = video.currentTime;
+      if (t < tl.start || t > tl.start + tl.span * 0.92) { tl.start = t - tl.span * 0.08; tlClamp(); }
+    }
+    const ruler = 18, lane = 14;
+    const wfTop = ruler, wfBottom = h - lane;
+    const tx = t => ((t - tl.start) / tl.span) * w;
+    const end = tl.start + tl.span;
+    const playX = tx(video.currentTime || 0);
+    const zoom = dur / tl.span;
+    tlInfoEl.textContent = `${fmtTime(tl.start)} – ${fmtTime(end)} · ×${zoom < 10 ? zoom.toFixed(1) : Math.round(zoom)}`;
+
+    // Ruler
+    const pxPerSec = w / tl.span;
+    const [step, sub] = TL_STEPS.find(([s]) => s * pxPerSec >= 80) || TL_STEPS[TL_STEPS.length - 1];
+    const minor = step / sub;
+    ctx.strokeStyle = col.line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, ruler - 0.5); ctx.lineTo(w, ruler - 0.5); ctx.stroke();
+    ctx.fillStyle = col.muted; ctx.textAlign = 'left';
+    ctx.strokeStyle = col.muted;
+    ctx.beginPath();
+    for (let k = Math.ceil(tl.start / minor - 1e-9); k * minor <= end + 1e-9; k++) {
+      const x = Math.round(tx(k * minor)) + 0.5;
+      const major = k % sub === 0;
+      ctx.moveTo(x, ruler); ctx.lineTo(x, ruler - (major ? 8 : 4));
+      if (major) ctx.fillText(tlLabel(k * minor, step), x + 3, 7);
+    }
+    ctx.stroke();
+
+    // Loop range
+    const loopOk = loop.on && loop.a != null && loop.b != null && loopEndTime() > loop.a;
+    if (loopOk) {
+      const x1 = tx(loop.a), x2 = tx(loopEndTime());
+      ctx.globalAlpha = 0.14; ctx.fillStyle = col.accent;
+      ctx.fillRect(x1, wfTop, x2 - x1, h - wfTop);
+      ctx.globalAlpha = 1; ctx.fillRect(x1 - 1, wfTop, 2, h - wfTop); ctx.fillRect(x2 - 1, wfTop, 2, h - wfTop);
+    }
+
+    // Waveform
+    const half = (wfBottom - wfTop) / 2 - 1;
+    const mid = wfTop + half + 1;
+    ctx.fillStyle = col.line; ctx.fillRect(0, Math.round(mid), w, 1);
+    const pk = item.peaks;
+    if (pk) {
+      const bppx = (tl.span / w) * PEAKS_PER_SEC;
+      const lvl = Math.max(0, Math.min(pk.levels.length - 1, Math.floor(Math.log(Math.max(bppx, 1)) / Math.log(8))));
+      const lv = pk.levels[lvl], rate = PEAKS_PER_SEC / Math.pow(8, lvl), len = lv.min.length;
+      const gain = 1 / Math.max(pk.peak, 0.05);
+      let cur = '';
+      for (let x = 0; x < w; x++) {
+        const i0 = Math.floor((tl.start + (x / w) * tl.span) * rate);
+        if (i0 >= len) break;
+        const i1 = Math.min(len, Math.max(i0 + 1, Math.ceil((tl.start + ((x + 1) / w) * tl.span) * rate)));
+        let lo = 0, hi = 0;
+        for (let i = i0; i < i1; i++) { if (lv.min[i] < lo) lo = lv.min[i]; if (lv.max[i] > hi) hi = lv.max[i]; }
+        const y1 = mid - Math.min(1, hi * gain) * half;
+        const y2 = mid - Math.max(-1, lo * gain) * half;
+        const want = x < playX ? col.accent : col.muted;
+        if (want !== cur) { ctx.fillStyle = want; cur = want; }
+        ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+      }
+    } else {
+      ctx.fillStyle = col.muted; ctx.textAlign = 'center';
+      ctx.fillText(item.peaksState === 'loading' ? 'Analyzing waveform…' : (item.peaksNote || ''), w / 2, mid - 10);
+    }
+
+    // Transcript timestamps
+    const seen = new Set();
+    let labelEnd = -1e9;
+    ctx.textAlign = 'left';
+    const lastT = tlStamps.length ? tlStamps[tlStamps.length - 1].time : -1;
+    tlStamps.forEach(st => {
+      if (seen.has(st.time) || st.time < tl.start || st.time > end) return;
+      seen.add(st.time);
+      const x = Math.round(tx(st.time)) + 0.5;
+      const isLast = st.time === lastT;
+      ctx.strokeStyle = isLast ? col.accent : col.muted;
+      ctx.globalAlpha = isLast ? 1 : 0.55;
+      ctx.beginPath(); ctx.moveTo(x, wfTop); ctx.lineTo(x, h); ctx.stroke();
+      ctx.globalAlpha = 1;
+      const txt = fmtTime(st.time), tw = ctx.measureText(txt).width;
+      if (x + 3 > labelEnd + 4 && x + 3 + tw < w) {
+        ctx.fillStyle = isLast ? col.accent : col.muted;
+        ctx.fillText(txt, x + 3, h - lane / 2);
+        labelEnd = x + 3 + tw;
+      }
+    });
+
+    // Hover guide
+    if (tl.hoverX != null && !tl.drag) {
+      const hx = Math.round(tl.hoverX) + 0.5;
+      ctx.strokeStyle = col.ink; ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.moveTo(hx, ruler); ctx.lineTo(hx, h); ctx.stroke();
+      ctx.globalAlpha = 1;
+      const txt = fmtTime(tl.start + (tl.hoverX / w) * tl.span), tw = ctx.measureText(txt).width + 8;
+      const bx = Math.max(0, Math.min(w - tw, hx - tw / 2));
+      ctx.fillStyle = col.ink; ctx.fillRect(bx, wfTop + 2, tw, 14);
+      ctx.fillStyle = col.panel; ctx.textAlign = 'left';
+      ctx.fillText(txt, bx + 4, wfTop + 9);
+    }
+
+    // Playhead
+    if (playX >= -1 && playX <= w + 1) {
+      ctx.fillStyle = col.accent;
+      ctx.fillRect(Math.round(playX) - 1, ruler, 2, h - ruler);
+      ctx.beginPath();
+      ctx.moveTo(playX - 5, ruler); ctx.lineTo(playX + 5, ruler); ctx.lineTo(playX, ruler + 6);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  function tlLoop() {
+    tl.raf = 0;
+    tlDraw();
+    if (!video.paused) tl.raf = requestAnimationFrame(tlLoop);
+  }
+  function tlStartLoop() { if (!tl.raf) tl.raf = requestAnimationFrame(tlLoop); }
+
+  function tlZoom(factor, anchorTime) {
+    const dur = tlDur();
+    if (!dur) return;
+    if (!tl.span) tl.span = dur;
+    const frac = (anchorTime - tl.start) / tl.span;
+    const span = Math.max(Math.min(TL_MIN_SPAN, dur), Math.min(dur, tl.span * factor));
+    tl.start = anchorTime - frac * span;
+    tl.span = span;
+    tlClamp();
+    tl.holdUntil = performance.now() + 2000;
+    tlDraw();
+  }
+
+  // Button/keyboard zoom: anchor on the playhead when it is in view, else the middle of the view.
+  function tlZoomBy(factor) {
+    if (!state.items[state.activeIndex] || !tlDur()) return;
+    const t = video.currentTime || 0;
+    const inView = t >= tl.start && t <= tl.start + tl.span;
+    tlZoom(factor, inView ? t : tl.start + tl.span / 2);
+  }
+
+  function tlFit() {
+    tl.start = 0; tl.span = tlDur();
+    tlClamp();
+    tlDraw();
+  }
+
+  function tlTimeAt(clientX) {
+    const r = tlCanvas.getBoundingClientRect();
+    return tl.start + ((clientX - r.left) / r.width) * tl.span;
+  }
+
+  // Magnet: a click/drag within TL_SNAP_PX of a transcript timestamp lands exactly on it (hold Alt to seek freely).
+  const TL_SNAP_PX = 10;
+  function tlSnap(t, e) {
+    if (e && e.altKey) return t;
+    const w = tlCanvas.getBoundingClientRect().width;
+    if (!w || !tl.span || !tlStamps.length) return t;
+    const maxDist = (TL_SNAP_PX / w) * tl.span;
+    let best = null, bd = maxDist;
+    for (const st of tlStamps) {
+      const d = Math.abs(st.time - t);
+      if (d <= bd) { bd = d; best = st.time; }
+    }
+    return best === null ? t : best;
+  }
+
+  function tlSeek(t) {
+    const dur = tlDur();
+    if (!dur) return;
+    video.currentTime = Math.max(0, Math.min(dur, t));
+    tlDraw();
+  }
+
+  tlCanvas.addEventListener('pointerdown', e => {
+    if (!tlDur() || (e.button !== 0 && e.button !== 1)) return;
+    e.preventDefault();
+    tlCanvas.setPointerCapture(e.pointerId);
+    const pan = e.button === 1 || e.shiftKey;
+    tl.drag = { pan, x0: e.clientX, start0: tl.start };
+    tlCanvas.classList.toggle('panning', pan);
+    if (!pan) tlSeek(tlSnap(tlTimeAt(e.clientX), e));
+  });
+  tlCanvas.addEventListener('pointermove', e => {
+    const r = tlCanvas.getBoundingClientRect();
+    tl.hoverX = e.clientX - r.left;
+    if (tl.drag) {
+      if (tl.drag.pan) {
+        tl.start = tl.drag.start0 - ((e.clientX - tl.drag.x0) / r.width) * tl.span;
+        tlClamp();
+        tl.holdUntil = performance.now() + 2000;
+      } else {
+        tlSeek(tlSnap(tlTimeAt(e.clientX), e));
+      }
+    }
+    tlDraw();
+  });
+  const tlEndDrag = () => { tl.drag = null; tlCanvas.classList.remove('panning'); tlDraw(); };
+  tlCanvas.addEventListener('pointerup', tlEndDrag);
+  tlCanvas.addEventListener('pointercancel', tlEndDrag);
+  tlCanvas.addEventListener('pointerleave', () => { tl.hoverX = null; if (!tl.drag) tlDraw(); });
+  tlCanvas.addEventListener('dblclick', tlFit);
+  tlCanvas.addEventListener('contextmenu', e => e.preventDefault());
+  // Wheel zoom / pan. Not passive so the page (and the browser's own zoom on Ctrl+wheel / pinch) stays put.
+  tlCanvas.addEventListener('wheel', e => {
+    if (!tlDur()) return;
+    e.preventDefault();
+    const r = tlCanvas.getBoundingClientRect();
+    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      tl.start += ((e.deltaX || e.deltaY) / r.width) * tl.span;
+      tlClamp();
+      tl.holdUntil = performance.now() + 2000;
+      tlDraw();
+    } else {
+      tlZoom(Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), tlTimeAt(e.clientX));
+    }
+  }, { passive: false });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(n => tlCanvas.addEventListener(n, e => e.preventDefault()));
+
+  document.getElementById('tlIn').addEventListener('click', () => tlZoomBy(1 / 1.6));
+  document.getElementById('tlOut').addEventListener('click', () => tlZoomBy(1.6));
+  document.getElementById('tlFit').addEventListener('click', tlFit);
+
+  video.addEventListener('loadedmetadata', () => { tl.start = 0; tl.span = 0; tlClamp(); tlDraw(); });
+  video.addEventListener('play', tlStartLoop);
+  video.addEventListener('pause', tlDraw);
+  video.addEventListener('timeupdate', () => { if (video.paused) tlDraw(); });
+  video.addEventListener('seeked', () => {
+    // A jump from the transcript, "Last", a bookmark or the loop: bring the playhead into view.
+    if (!tl.drag && tl.span) {
+      const t = video.currentTime;
+      if (t < tl.start || t > tl.start + tl.span) { tl.start = t - tl.span / 2; tlClamp(); }
+    }
+    tlDraw();
+  });
+  new ResizeObserver(tlDraw).observe(tlCanvas);
+
+  // Waveform peaks: decode once per file, in the background.
+  function tlBuildPeaks(buf) {
+    const n = buf.length, spb = buf.sampleRate / PEAKS_PER_SEC;
+    const nb = Math.max(1, Math.ceil(n / spb));
+    const mn = new Float32Array(nb), mx = new Float32Array(nb);
+    for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let b = 0; b < nb; b++) {
+        const s = Math.floor(b * spb), e = Math.min(n, Math.floor((b + 1) * spb));
+        let lo = mn[b], hi = mx[b];
+        for (let i = s; i < e; i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+        mn[b] = lo; mx[b] = hi;
+      }
+    }
+    const levels = [{ min: mn, max: mx }];
+    while (levels.length < 6 && levels[levels.length - 1].min.length > 1) {
+      const p = levels[levels.length - 1], len = Math.ceil(p.min.length / 8);
+      const a = new Float32Array(len), z = new Float32Array(len);
+      for (let i = 0; i < len; i++) {
+        let lo = 0, hi = 0;
+        for (let j = i * 8, e = Math.min(p.min.length, j + 8); j < e; j++) { if (p.min[j] < lo) lo = p.min[j]; if (p.max[j] > hi) hi = p.max[j]; }
+        a[i] = lo; z[i] = hi;
+      }
+      levels.push({ min: a, max: z });
+    }
+    let peak = 0;
+    for (let i = 0; i < nb; i++) peak = Math.max(peak, -mn[i], mx[i]);
+    return { levels, peak };
+  }
+
+  async function tlLoadPeaks(item) {
+    if (item.peaks || item.peaksState === 'loading' || item.peaksState === 'failed') return;
+    if (item.file.size > PEAK_MAX_BYTES) {
+      item.peaksState = 'failed'; item.peaksNote = 'Waveform skipped (file too large)';
+      tlDraw(); return;
+    }
+    item.peaksState = 'loading';
+    tlDraw();
+    try {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const ctx = new OAC(1, 1, PEAK_RATE);
+      const buf = await ctx.decodeAudioData(await item.file.arrayBuffer());
+      item.peaks = tlBuildPeaks(buf);
+      item.peaksState = 'ready';
+    } catch (_) {
+      item.peaksState = 'failed'; item.peaksNote = 'No waveform (could not decode audio)';
+    }
+    tlDraw();
+  }
+
+  function pauseAndEdit() {
+    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
+    video.pause();
+    transcriptTextEl.focus();
+    tsStatusEl.textContent = 'Paused — editing transcript';
+  }
+
+  // ── Theme ─────────────────────────────────────────────────
+  function applyTheme(dark) {
+    state.dark = dark;
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    document.getElementById('themeBtn').querySelector('span').textContent = dark ? '☾' : '☼';
+    tlColorCache = null;
+    tlDraw();
+  }
+
+  // Detect initial system preference
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(prefersDark);
+
+  // ── Events ────────────────────────────────────────────────
+  document.getElementById('libToggle').addEventListener('click', () => {
+    state.libOpen = !state.libOpen;
+    applyClasses();
+  });
+
+  document.getElementById('themeBtn').addEventListener('click', () => applyTheme(!state.dark));
+
+  document.getElementById('playBtn').addEventListener('click', togglePlay);
+  document.getElementById('boostBar').addEventListener('input', e => setBoost(Number(e.target.value)));
+  document.getElementById('pauseEditBtn').addEventListener('click', pauseAndEdit);
+  skipInput.addEventListener('change', normalizeSkip);
+
+  document.getElementById('addFileBtn').addEventListener('click', () => document.getElementById('fileIn').click());
+  document.getElementById('addFileBtnBar').addEventListener('click', () => document.getElementById('fileIn').click());
+  document.getElementById('fileIn').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+
+  video.addEventListener('timeupdate', () => { updatePlaybackUI(); syncTranscriptToTime(false); });
+  video.addEventListener('seeked', () => syncTranscriptToTime(true));
+  video.addEventListener('loadedmetadata', updatePlaybackUI);
+  video.addEventListener('play', () => { if (state.boost !== 100) ensureAudio(); updatePlaybackUI(); });
+  video.addEventListener('pause', updatePlaybackUI);
+
+  seekBar.addEventListener('input', () => {
+    if (!video.duration) return;
+    video.currentTime = (Number(seekBar.value) / 1000) * video.duration;
+  });
+
+  document.addEventListener('keydown', e => {
+    const tag = e.target.tagName;
+    const isText = tag === 'TEXTAREA' || tag === 'INPUT';
+
+    if (e.target.classList && e.target.classList.contains('spk-add')) return; // typing a speaker name
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^(Digit|Numpad)[1-9]$/.test(e.code)) {
+      e.preventDefault();
+      insertSpeaker(Number(e.code.slice(-1)) - 1);
+      return;
+    }
+    if (e.shiftKey && e.code === 'Space') { e.preventDefault(); togglePlay(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); insertTimestamp(); return; }
+    if (e.key === '[' || e.key === '{') { e.preventDefault(); seekBy(-normalizeSkip()); return; }
+    if (e.key === ']' || e.key === '}') { e.preventDefault(); seekBy(normalizeSkip()); return; }
+
+    if (isText) {
+      if (e.key === 'Escape') e.target.blur();
+      return;
+    }
+
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowLeft') seekBy(-5);
+    else if (e.key === 'ArrowRight') seekBy(5);
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setBoost(state.boost + 10); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setBoost(state.boost - 10); }
+    else if (e.key === 'p' || e.key === 'P') pauseAndEdit();
+    else if (e.key === 't' || e.key === 'T') insertTimestamp();
+    else if (e.key === 'l' || e.key === 'L') setLoop(!loop.on);
+    else if (e.key === '+' || e.key === '=') tlZoomBy(1 / 1.6);
+    else if (e.key === '-' || e.key === '_') tlZoomBy(1.6);
+  });
+
+  // ── Init ──────────────────────────────────────────────────
+  normalizeSkip();
+  applyClasses();
+  renderLibrary();
+  updatePlaybackUI();
+</script>
+
+</body></html>
