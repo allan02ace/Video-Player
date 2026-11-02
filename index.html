@@ -37,12 +37,15 @@
     }
     .app {
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr) minmax(300px, 420px);
+      grid-template-columns: 320px minmax(0, 1fr);
       gap: 18px;
       height: 100dvh;
       padding: 18px;
       max-width: 1600px;
       margin: 0 auto;
+    }
+    .app.transcript-mode {
+      grid-template-columns: 320px minmax(0, 1fr) 380px;
     }
     .lib, .stage, .transcript-pane {
       background: var(--panel);
@@ -90,6 +93,15 @@
       display: grid; place-items: center;
       color: var(--ink);
       background: var(--chip);
+    }
+    .icon-btn.primary {
+      background: var(--accent);
+      color: white;
+      width: auto;
+      padding: 0 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
     }
     .chips {
       display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px 12px;
@@ -189,7 +201,11 @@
     }
     .seek input[type="range"] { width: 100%; accent-color: var(--accent); }
     .transcript-pane {
-      display: flex; flex-direction: column; min-height: 0;
+      display: none;
+      flex-direction: column; min-height: 0;
+    }
+    .app.transcript-mode .transcript-pane {
+      display: flex;
     }
     .transcript-head {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -227,6 +243,9 @@
         grid-template-columns: 1fr;
         height: auto; min-height: 100dvh;
       }
+      .app.transcript-mode {
+        grid-template-columns: 1fr;
+      }
       .lib, .stage, .transcript-pane {
         min-height: 300px;
       }
@@ -235,7 +254,7 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="app">
     <aside class="lib" aria-label="Library panel">
       <div class="lib-head">
         <div class="brand">
@@ -243,8 +262,9 @@
           <span>AMPM</span>
         </div>
         <div class="lib-tools">
-          <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">☼</button>
-          <button class="icon-btn" id="searchBtn" aria-label="Search videos">⌕</button>
+          <button class="icon-btn primary" id="transcriptToggle" type="button">Transcript</button>
+          <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" type="button">☼</button>
+          <button class="icon-btn" id="searchBtn" aria-label="Search videos" type="button">⌕</button>
         </div>
       </div>
       <div class="chips" id="chips"></div>
@@ -268,15 +288,15 @@
         <div class="topbar">
           <div class="title" id="videoTitle">No video</div>
           <div class="group">
-            <button class="control-btn" id="jumpBack">−5</button>
-            <button class="control-btn" id="jumpForward">+5</button>
+            <button class="control-btn" id="jumpBack" type="button">−5</button>
+            <button class="control-btn" id="jumpForward" type="button">+5</button>
           </div>
         </div>
         <div class="controls-row">
           <div class="group">
-            <button class="control-btn" id="prevBtn">⏮</button>
-            <button class="control-btn play" id="playBtn">▶</button>
-            <button class="control-btn" id="nextBtn">⏭</button>
+            <button class="control-btn" id="prevBtn" type="button">⏮</button>
+            <button class="control-btn play" id="playBtn" type="button">▶</button>
+            <button class="control-btn" id="nextBtn" type="button">⏭</button>
           </div>
           <div class="seek">
             <span id="currentTime">00:00</span>
@@ -291,14 +311,14 @@
       <div class="transcript-head">
         <strong>Transcript</strong>
         <div class="head-tools">
-          <button class="mini-btn primary" id="pauseEditBtn">Pause + edit</button>
-          <button class="mini-btn" id="replayBtn">Replay</button>
+          <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
+          <button class="mini-btn" id="replayBtn" type="button">Replay</button>
         </div>
       </div>
       <textarea id="transcriptText" placeholder="Type or paste the transcript here. Use keyboard shortcuts or click a timestamp button while reviewing the video."></textarea>
       <div class="transcript-footer">
         <div id="tsStatus">No video loaded</div>
-        <button class="stamp-btn" id="stampBtn">Insert timestamp</button>
+        <button class="stamp-btn" id="stampBtn" type="button">Insert timestamp</button>
       </div>
     </aside>
   </div>
@@ -315,6 +335,7 @@
     const totalTimeEl = document.getElementById('totalTime');
     const transcriptTextEl = document.getElementById('transcriptText');
     const tsStatusEl = document.getElementById('tsStatus');
+    const appEl = document.getElementById('app');
 
     const state = {
       items: [],
@@ -407,7 +428,7 @@
         return;
       }
 
-      filtered.forEach((item, index) => {
+      filtered.forEach((item) => {
         const button = document.createElement('button');
         button.className = `video-item ${state.activeIndex === state.items.indexOf(item) ? 'active' : ''}`;
         button.type = 'button';
@@ -449,6 +470,11 @@
       }
     }
 
+    function updateTranscriptMode() {
+      appEl.classList.toggle('transcript-mode', !!state.transcriptMode);
+      document.getElementById('transcriptToggle').textContent = state.transcriptMode ? 'Hide transcript' : 'Transcript';
+    }
+
     function updatePlaybackUI() {
       const playBtn = document.getElementById('playBtn');
       playBtn.textContent = video.paused ? '▶' : '❚❚';
@@ -485,12 +511,18 @@
         return;
       }
       state.transcriptMode = true;
+      updateTranscriptMode();
       video.pause();
       transcriptTextEl.focus();
       tsStatusEl.textContent = 'Paused for editing';
     }
 
     function setupEvents() {
+      document.getElementById('transcriptToggle').addEventListener('click', () => {
+        state.transcriptMode = !state.transcriptMode;
+        updateTranscriptMode();
+      });
+
       document.getElementById('playBtn').addEventListener('click', togglePlay);
       document.getElementById('prevBtn').addEventListener('click', () => {
         if (state.activeIndex > 0) loadItem(state.activeIndex - 1, true);
@@ -556,6 +588,7 @@
           if (event.key === 'Escape') {
             transcriptTextEl.blur();
             state.transcriptMode = false;
+            updateTranscriptMode();
           }
           return;
         }
@@ -580,6 +613,7 @@
     }
 
     setupEvents();
+    updateTranscriptMode();
     renderLibrary();
     updatePlaybackUI();
   </script>
