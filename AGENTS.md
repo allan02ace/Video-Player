@@ -13,7 +13,7 @@ This file describes the **lean version** (`index.html`, about 45 KB, about 650 l
 ## Files
 - `index.html`: the whole app (HTML, CSS and JS in one file, no libraries, no build step).
 - `manifest.webmanifest`: PWA name, colors, icons.
-- `sw.js`: service worker (see below). **Bump `const C='ampm-vN'` whenever `index.html` changes** so phones pick up the update. Current value: `ampm-v18`.
+- `sw.js`: service worker (see below). **Bump `const C='ampm-vN'` whenever `index.html` changes** so phones pick up the update. Current value: `ampm-v21`.
 - `icons/`: `icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`.
 - `README.md`: GitHub Pages and install steps for the owner. It still mentions "Save a copy on this device" and "Last added", which belong to the bigger build and are not in this version.
 
@@ -23,6 +23,7 @@ This file describes the **lean version** (`index.html`, about 45 KB, about 650 l
 - **Player controls:** play/pause, prev/next (auto-advance when a video ends), seek bar, volume and brightness popover, speed cycle (1x, 1.25x, 1.5x, 2x, 0.5x, 0.75x), fit/fill, repeat, audio-only, picture-in-picture, fullscreen (hidden if unsupported), controls lock, auto-hiding controls.
 - **Volume:** the slider goes to 300%. Above 100% (or once boosted) it uses a Web Audio gain plus a limiter. The audio graph is created lazily (`bootAudio`) because on iPhone Web Audio follows the silent switch while normal video does not. `volBy(d)` changes volume in 5% steps and shows the bubble.
 - **Volume bar:** `#vbar` is a vertical bar on the right edge of the player (percentage on top, fill up to 300%, amber above 100%), shown for about 0.9 s by `showVol(x)` whenever volume changes by keys, wheel or swipe.
+- **Play/pause badge:** `#pst`, a round badge near the top right (in the very top right corner when the controls are hidden, which is the normal case in desktop fullscreen; moved down below the pill row, same spot as the zoom chip, while the controls are showing) showing the play or pause icon for about 1.1 s whenever playback starts or pauses (`pstFlash`). Skipped while scrubbing, while the resume dialog is open, right after a video loads (`quietUntil`) and when the page is hidden.
 - **On-screen bubble:** `#hud`, shown by `flash(html)` for about 0.9 s. Used by volume and the sleep timer.
 - **Skip time display (VLC style):** `seekBy(sec)` moves the position and `flashTime(t)` shows plain outlined text such as `58:20 / 1:26:35` in the upper right corner of the player for about 1.3 s (`#hud` with class `osd`, which overrides the centred bubble position; `flash()` removes the class). Used by the Left/Right keys, double-tap skips (both 10 s) and the sideways swipe. The seek bar, prev/next buttons and G/H do not use it.
 - **Sleep timer:** moon pill `#slBtn` opens `#slpop`: 15, 30, 45, 60 minutes, End of video, Off. It stores an end time (`sleepEnd`, wall clock, so it is correct when the screen is off) and is checked every second and on `timeupdate`. "End of video" sets `sleepEndVid`, and `v.onended` pauses instead of advancing (with Repeat on, the video never ends, so it waits). While active the pill shows `28m` or `End`.
@@ -37,18 +38,18 @@ This file describes the **lean version** (`index.html`, about 45 KB, about 650 l
 
 - **Skip settings (first pill, real gear icon, `#advBtn` / `#advpop`):** replaced the old volume and brightness popover (those are still set by swipe, wheel and keys; the hidden `#pop` with `#vol` and `#bri` stays in the DOM because the code uses the sliders). `skipSeconds` (1 to 300, default 10, saved in `localStorage` as `ampm:skip`) drives the Left/Right keys, double-tap skips and the lock-screen skip buttons. Swipe scrub still uses `SWIPE_MS`.
 - **Keep on this device (optional, per add):** the checkbox `#keepIn` above the Add buttons (off by default; only files added while it is ticked are kept). Kept files are copied into the browser's private file system (OPFS) from a small worker made from a Blob (`WK_SRC`, `saveOpfs`), or into IndexedDB (`ampm` / store `b`) when OPFS is unsupported or fails (`saveIdb`). One file is saved at a time (`queueSave`, `pumpSave`, `doSave`); progress shows in `#svl`. Before copying, `roomFor()` checks `navigator.storage.estimate()` (file size plus 300 MB); if there is no room the video still plays but is not kept, with a message. `navigator.storage.persist()` is requested. Metadata (key, name, folder, thumbnail, duration, size, mime, backend, file id) lives in `localStorage['ampm:saved']` (`persistMeta`); on start, `items[]` is filled from it with `url:''`, and `load()` calls `getUrl()` to open the stored file lazily (the blob is re-typed with the saved mime so iPhone plays it). Saved rows show "Saved" and a bin button (`removeSaved`) that deletes the stored copy only, never the original file; `#stor` shows total saved and room left. Re-adding a file that is already saved is skipped. Subtitles are not kept. iPhone note: install to the Home Screen, otherwise Safari may clear stored data after about a week of not opening the site. Not tested on a real iPhone at 1 GB or more: try a small file first.
+- **Remembered settings:** volume (including the 300% boost), picture brightness, playback speed, fit/fill, repeat and the light/dark choice are saved in `localStorage['ampm:prefs']` (one JSON object; `pref(key,value)` writes it after a short delay) and restored at the end of the script. The theme is also applied by a tiny script in `<head>` so there is no flash. A saved volume above 100% waits (`pendingBoost`) until the first `play` to start the audio boost, because on iPhone Web Audio must not start before playback. Muted, zoom, rotation, audio-only and the sleep timer are deliberately not remembered. To remember another setting, call `pref('name',value)` where it changes and read it in the restore block.
 - **Sleep timer extras:** presets 5, 15, 30, 45, 60, 90, 120 min, End of video, Off, plus a custom minutes field (`#slCustom`, `#slSet`, 1 to 600).
 - **Audio files:** the picker and importer accept mp3, m4a, aac, flac, ogg, wav, wma, aiff and more; whether one plays still depends on the browser.
 - **Audio only + background play:** the music-note button in the top bar (`#audioBtn`) toggles `audioOnly` (hides the picture, shows a note, button highlighted, bubble says it keeps playing in the background). While it is on, if the browser pauses the player because the page went to the background (`visibilitychange` sets `bgKeep`, the `pause` handler calls `play()` again), playback resumes. Media Session gives lock-screen / notification controls: title, app icon, play, pause, previous, next, seek by the skip time, seek to, and position state. `sleepFire()` and the Media Session pause clear `bgKeep` so a real pause stays paused. Browsers differ: this is best effort and cannot be guaranteed on every phone. Leaving the player with the back arrow still pauses.
 
 ## Not in this version (ideas, in rough priority)
 1. Rebindable shortcuts and swipe seek ms/px setting (today `SWIPE_MS` is a constant; skip length is already adjustable).
-2. Remembered volume, brightness and speed between visits.
-3. Keep subtitles with saved videos; Last added / Recover; show saved storage in a settings screen.
-4. Keep audio playing after the back arrow (needs a mini player in the library).
-5. Create folders and move videos on phones.
-6. `.vtt` and `.ass` subtitles; export the re-timed `.srt`; subtitle font and colour options.
-7. Remote video links (fine on GitHub Pages for direct `.mp4`; YouTube links cannot play in a custom `<video>` player).
+2. Keep subtitles with saved videos; Last added / Recover; show saved storage in a settings screen.
+3. Keep audio playing after the back arrow (needs a mini player in the library).
+4. Create folders and move videos on phones.
+5. `.vtt` and `.ass` subtitles; export the re-timed `.srt`; subtitle font and colour options.
+6. Remote video links (fine on GitHub Pages for direct `.mp4`; YouTube links cannot play in a custom `<video>` player).
 
 ## How the code is organised (inside `index.html`)
 One IIFE. Main state: `items[]`, `idx` (current), `folder`, `q`, `cues`, `off`, `lockOn`.

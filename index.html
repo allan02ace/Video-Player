@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>AMPM Player</title>
 <meta name="theme-color" content="#7c3aed">
+<script>try{var pt=JSON.parse(localStorage.getItem('ampm:prefs')).theme;if(pt==='dark'||pt==='light')document.documentElement.dataset.theme=pt}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AMPM">
@@ -83,6 +84,10 @@ video{width:100%;height:100%;object-fit:contain;background:#0b1a22;display:block
 .fs-wrap:fullscreen{border-radius:0;border:0;background:#000}
 .stage{touch-action:none}
 .zchip{position:absolute;top:calc(118px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:4;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600}
+.pst{position:absolute;right:18px;top:calc(118px + env(safe-area-inset-top,0px));z-index:4;width:52px;height:52px;border-radius:50%;background:#000a;color:#fff;display:grid;place-items:center;font-size:26px;pointer-events:none;animation:pstin .15s ease-out}
+.stage.idle .pst{top:calc(18px + env(safe-area-inset-top,0px))}
+.pst[hidden]{display:none}
+@keyframes pstin{from{opacity:0;transform:scale(.8)}}
 .zchip[hidden],.spin[hidden],.load[hidden],.hud[hidden]{display:none}
 .hud{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:4;background:#000b;color:#fff;border-radius:16px;padding:12px 20px;font-size:17px;font-weight:600;text-align:center;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
 .hud.osd{top:calc(10px + env(safe-area-inset-top,0px));left:auto;right:18px;transform:none;text-align:right;background:none;padding:0;border-radius:0;font-size:clamp(22px,3.4vw,34px);font-weight:700;letter-spacing:.5px;text-shadow:0 0 2px #000,0 0 4px #000,2px 2px 4px #000,-1px -1px 2px #000;-webkit-text-stroke:1px #000;paint-order:stroke fill}
@@ -244,6 +249,7 @@ video{background:#000}
  </div>
 <div class="spin" id="spin" hidden></div>
 <div class="hud" id="hud" hidden></div>
+<div class="pst" id="pst" hidden aria-hidden="true"></div>
 <div class="vbar" id="vbar" hidden><b id="vbT">100%</b><div class="vtr"><i id="vbF"></i></div></div>
 <div class="tip" id="tip" hidden></div>
 <button class="zchip" id="zchip" hidden>Zoom 1.0× · Reset</button>
@@ -354,6 +360,7 @@ list.addEventListener('click',function(e){
 
 function load(i,go){
   if(i<0||i>=items.length)return;
+  quietUntil=Date.now()+800;$('pst').hidden=true;
   if(!items[i].url){spin(true);getUrl(items[i]).then(function(){load(i,go)},function(){spin(false);flash('Can\u2019t open this video<small>The saved file is missing. You can remove it.</small>')});return}
   idx=i;v.src=items[i].url;$('title').textContent=items[i].name;$('ph').classList.add('hide');
   v.playbackRate=speeds[sp];msMeta();
@@ -368,6 +375,14 @@ $('fileIn').onchange=function(e){addFiles(e.target.files,false);e.target.value='
 $('dirIn').onchange=function(e){addFiles(e.target.files,true);e.target.value=''};
 document.querySelectorAll('label.btn').forEach(function(l){l.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();l.querySelector('input').click()}}});
 
+/* play / pause badge in the top right (about 1 s). Skipped while scrubbing, in dialogs and just after a video loads. */
+var pstT=0,quietUntil=0;
+function pstFlash(playing){
+  if(Date.now()<quietUntil||scrub||!v.getAttribute('src')||!$('dlg').hidden||v.ended||document.hidden)return;
+  var b=$('pst');b.innerHTML=playing?PLAY:PAUSE;b.hidden=false;clearTimeout(pstT);pstT=setTimeout(function(){b.hidden=true},1100);
+}
+v.addEventListener('play',function(){pstFlash(true)});
+v.addEventListener('pause',function(){pstFlash(false)});
 function toggle(){if(idx<0){if(items.length)load(0,true);return}v.paused?v.play():v.pause()}
 $('play').onclick=toggle;
 v.onclick=function(){if(!lockOn)toggle()};
@@ -397,7 +412,7 @@ bar.addEventListener('pointerenter',tipShow);
 bar.addEventListener('pointerleave',function(){$('tip').hidden=true});
 
 var sp=0;
-$('spd').onclick=function(){sp=(sp+1)%speeds.length;v.playbackRate=speeds[sp];$('spd').textContent=speeds[sp]+'x'};
+$('spd').onclick=function(){sp=(sp+1)%speeds.length;v.playbackRate=speeds[sp];$('spd').textContent=speeds[sp]+'x';pref('rate',speeds[sp])};
 $('advBtn').onclick=function(){$('pop').classList.remove('show');$('subpop').classList.remove('show');$('slpop').classList.remove('show');$('advpop').classList.toggle('show')};
 $('skipIn').onchange=function(e){setSkip(e.target.value)};
 $('skipSet').onclick=function(){setSkip($('skipIn').value)};
@@ -405,7 +420,7 @@ $('skipReset').onclick=function(){setSkip(10)};
 Array.prototype.forEach.call(document.querySelectorAll('#advpop [data-skip]'),function(b){b.onclick=function(){setSkip(b.dataset.skip)}});
 try{var sk0=localStorage.getItem('ampm:skip');setSkip(sk0?sk0:10,false)}catch(e){setSkip(10,false)}
 $('vol').oninput=function(e){setVol(+e.target.value)};
-$('bri').oninput=function(e){v.style.filter='brightness('+e.target.value+')'};
+$('bri').oninput=function(e){v.style.filter='brightness('+e.target.value+')';pref('bri',+e.target.value)};
 /* ---- Small on-screen bubble and keyboard/wheel volume ---- */
 var hudT;
 function flash(h){var b=$('hud');b.classList.remove('osd');b.innerHTML=h;b.hidden=false;clearTimeout(hudT);hudT=setTimeout(function(){b.hidden=true},900)}
@@ -432,12 +447,12 @@ function volBy(d){
   r.value=x;setVol(x);if(v.muted&&d>0)v.muted=false;
   showVol(x);
 }
-$('fit').onclick=function(){var c=v.style.objectFit==='cover';v.style.objectFit=c?'contain':'cover';$('fit').classList.toggle('on',!c)};
+$('fit').onclick=function(){var c=v.style.objectFit==='cover';v.style.objectFit=c?'contain':'cover';$('fit').classList.toggle('on',!c);pref('fit',v.style.objectFit)};
 function applyRot(){
   v.style.transform=zoom>1?'translate('+tx+'px,'+ty+'px) scale('+zoom+')':'';
   var z=$('zchip');z.hidden=!(zoom>1);z.textContent='Zoom '+zoom.toFixed(1)+'\u00d7 \u00b7 Reset';
 }
-$('loop').onclick=function(){v.loop=!v.loop;$('loop').classList.toggle('on',v.loop)};
+$('loop').onclick=function(){v.loop=!v.loop;$('loop').classList.toggle('on',v.loop);pref('loop',v.loop)};
 /* ---- Audio only + background play ----
    Tapping the audio button hides the picture and keeps the sound going when the screen turns off or the
    browser is in the background. Media Session adds lock-screen / notification controls. */
@@ -498,7 +513,7 @@ lockBtn.onclick=function(){lockOn=!lockOn;stage.classList.toggle('locked',lockOn
   lockBtn.parentNode.classList.toggle('lockrow',lockOn);lockBtn.closest('.bot').classList.toggle('lockrow',lockOn);
   var sk=document.querySelectorAll('.bot .grp, .seek');for(var i=0;i<sk.length;i++)sk[i].style.visibility=lockOn?'hidden':''};
 $('searchBtn').onclick=function(){var s=prompt('Search videos');if(s!==null){q=s.trim().toLowerCase();render()}};
-$('themeBtn').onclick=function(){var r=document.documentElement,d=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=d?'light':'dark'};
+$('themeBtn').onclick=function(){var r=document.documentElement,d=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=d?'light':'dark';pref('theme',r.dataset.theme)};
 
 function wake(){stage.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(function(){if(!v.paused)stage.classList.add('idle')},2800)}
 stage.addEventListener('mousemove',wake);
@@ -745,7 +760,7 @@ $('mid').addEventListener('touchmove',function(e){
     showVol(x);
   }else{
     var b=$('bri'),y=Math.max(+b.min,Math.min(+b.max,Math.round((sw.base-a.y/sw.ext)*100)/100));
-    b.value=y;v.style.filter='brightness('+y+')';
+    b.value=y;v.style.filter='brightness('+y+')';pref('bri',y);
     flash('Brightness<small>'+Math.round(y*100)+'%</small>');
   }
 },{passive:false});
@@ -757,7 +772,7 @@ function swEnd(cancel){
     seekWant=null;
     if(!cancel)v.currentTime=sw.target;
     scrub=false;
-    if(sw.was)v.play().catch(function(){});
+    if(sw.was){quietUntil=Date.now()+600;v.play().catch(function(){})}
   }
   sw=null;
 }
@@ -812,6 +827,7 @@ function setVol(x){
   $('volTxt').textContent=Math.round(x*100)+'%';$('volTxt').style.color=x>1?'#fbbf24':'';
   if((x>1||actx)&&bootAudio()){v.volume=1;gainN.gain.value=x;if(actx.state==='suspended')actx.resume()}
   else v.volume=Math.min(1,x);
+  pref('vol',x);
 }
 v.addEventListener('play',function(){if(actx&&actx.state==='suspended')actx.resume()});
 /* ---- Keep videos on this device (optional, per add) ----
@@ -922,6 +938,29 @@ function removeSaved(i){
   a.forEach(function(m){if(m&&m.fid)items.push({key:m.key,name:m.name,folder:m.folder||'Library',url:'',thumb:m.thumb||'',dur:m.dur||0,saved:true,fid:m.fid,backend:m.backend,size:m.size||0,mime:m.mime||''})});
   if(a.length)refreshStor();
 })();
+/* ---- Remember settings between visits (volume, brightness, speed, fit/fill, repeat, light/dark) ---- */
+var prefs={},prefT,pendingBoost=0;
+try{prefs=JSON.parse(localStorage.getItem('ampm:prefs'))||{}}catch(e){prefs={}}
+function pref(k,val){
+  prefs[k]=val;clearTimeout(prefT);
+  prefT=setTimeout(function(){try{localStorage.setItem('ampm:prefs',JSON.stringify(prefs))}catch(e){}},250);
+}
+(function(){
+  var p=prefs;
+  if(typeof p.vol==='number'&&p.vol>=0&&p.vol<=3){
+    $('vol').value=p.vol;$('volTxt').textContent=Math.round(p.vol*100)+'%';$('volTxt').style.color=p.vol>1?'#fbbf24':'';
+    if(p.vol>1){v.volume=1;pendingBoost=p.vol}else v.volume=p.vol;
+  }
+  var bs=$('bri');
+  if(typeof p.bri==='number'&&p.bri>=+bs.min&&p.bri<=+bs.max){bs.value=p.bri;v.style.filter='brightness('+p.bri+')'}
+  var ri=speeds.indexOf(p.rate);
+  if(ri>=0){sp=ri;v.playbackRate=p.rate;$('spd').textContent=p.rate+'x'}
+  if(p.fit==='cover'){v.style.objectFit='cover';$('fit').classList.add('on')}
+  if(p.loop===true){v.loop=true;$('loop').classList.add('on')}
+  if(p.theme==='dark'||p.theme==='light')document.documentElement.dataset.theme=p.theme;
+})();
+/* a saved volume above 100% needs the audio boost, which is only started once playback begins (iPhone rule) */
+v.addEventListener('play',function(){if(pendingBoost){var b=pendingBoost;pendingBoost=0;setVol(b)}});
 render();wake();
 })();
 </script>
