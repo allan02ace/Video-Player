@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
 <title>AMPM Player</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -236,6 +236,7 @@
   }
   /* ── Transcript pane ────────────────────────────────────── */
   .transcript-pane {
+    position: relative;
     flex: 1;
     display: flex; flex-direction: column;
     min-height: 0;
@@ -325,11 +326,14 @@
   }
   #transcriptText::placeholder { color: var(--muted); }
 
-  .transcript-footer {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 8px 16px 12px; border-top: 1px solid var(--line); flex-shrink: 0;
+  /* Status messages float over the editor's bottom-right corner and fade out; they take no layout space. */
+  .transcript-footer { position: absolute; right: 14px; bottom: 10px; max-width: calc(100% - 28px); pointer-events: none; z-index: 5; }
+  #tsStatus {
+    font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px;
+    opacity: 0; transition: opacity .2s;
   }
-  #tsStatus { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #tsStatus.show { opacity: 1; }
 
   /* ── Player / stage ─────────────────────────────────────── */
   .stage {
@@ -568,7 +572,7 @@
       </div>
       <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
-        <div id="tsStatus">No media loaded</div>
+        <div id="tsStatus"></div>
       </div>
     </aside>
 
@@ -630,6 +634,13 @@
   const totalTimeEl = document.getElementById('totalTime');
   const transcriptTextEl = document.getElementById('transcriptText');
   const tsStatusEl = document.getElementById('tsStatus');
+  let tsStatusTimer = 0;
+  new MutationObserver(() => {
+    clearTimeout(tsStatusTimer);
+    const has = !!tsStatusEl.textContent;
+    tsStatusEl.classList.toggle('show', has);
+    if (has) tsStatusTimer = setTimeout(() => { tsStatusEl.textContent = ''; }, 3000);
+  }).observe(tsStatusEl, { childList: true, characterData: true, subtree: true });
   const appEl = document.getElementById('app');
   const skipInput = document.getElementById('skipInput');
 
@@ -723,7 +734,7 @@
     videoTitleEl.textContent = item.name;
     emptyPlayerEl.hidden = true;
     controlsEl.hidden = false;
-    tsStatusEl.textContent = item.name;
+    tsStatusEl.textContent = '';
     updatePlaybackUI();
     renderBookmarks();
     tlLoadPeaks(item);
@@ -778,7 +789,6 @@
     currentTimeEl.textContent = fmtTime(video.currentTime || 0);
     totalTimeEl.textContent = fmtTime(video.duration || 0);
     if (video.duration) seekBar.value = (video.currentTime / video.duration) * 1000;
-    if (state.items[state.activeIndex]) tsStatusEl.textContent = state.items[state.activeIndex].name;
   }
 
   function insertTimestamp() {
