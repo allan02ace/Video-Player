@@ -647,7 +647,7 @@
   const state = {
     items: [],
     activeIndex: -1,
-    libOpen: false,
+    libOpen: window.innerWidth > 700, // open on first sight (stays collapsed on phone-width screens, where it becomes a top bar)
     skipSeconds: 2,
     boost: 100,
     dark: false
