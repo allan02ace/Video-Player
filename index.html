@@ -190,6 +190,9 @@ video{background:#000}
      <div class="row"><b style="flex:1">Advanced settings</b></div>
      <div class="row"><span style="flex:1">Double-tap skip</span><input id="skipIn" type="number" min="1" max="600" step="1" value="10" inputmode="numeric" aria-label="Double-tap skip in seconds"><span>s</span></div>
      <div class="row"><button class="sb" data-s="5">5</button><button class="sb" data-s="10">10</button><button class="sb" data-s="15">15</button><button class="sb" data-s="30">30</button><button class="sb" data-s="60">60</button></div>
+     <div class="row"><span style="flex:1">Swipe seek</span><input id="swIn" type="number" min="5" max="1000" step="5" value="50" inputmode="numeric" aria-label="Swipe seek in milliseconds per pixel"><span>ms/px</span></div>
+     <div class="row"><button class="sb" data-w="10">10</button><button class="sb" data-w="25">25</button><button class="sb" data-w="50">50</button><button class="sb" data-w="100">100</button><button class="sb" data-w="250">250</button></div>
+     <div class="s2">Swipe seek is the time moved for each pixel you drag sideways. Lower is finer. A fast swipe moves further, and the picture follows your finger.</div>
      <div class="s2">Double-tap the left third of the video to go back and the right third to go forward by this many seconds. Double-tap the middle to play or pause. Saved on this device.</div>
     </div>
     <div class="pop subs" id="subpop">
@@ -532,7 +535,10 @@ function touchDone(e){
 }
 stage.addEventListener('touchend',touchDone);stage.addEventListener('touchcancel',touchDone);
 /* ---- Swipe gestures: left side brightness, right side volume, horizontal seek ---- */
-var sg=null,hudT;
+var sg=null,hudT,scrub=false,seekPend=null;
+function fmtMs(t){t=Math.max(0,t);return fmt(t)+'.'+String(Math.floor((t%1)*1000)).padStart(3,'0')}
+function seekTo(t){if(v.seeking)seekPend=t;else{seekPend=null;v.currentTime=t}}
+v.addEventListener('seeked',function(){if(scrub&&seekPend!=null){var t=seekPend;seekPend=null;v.currentTime=t}});
 function hud(h){var e=$('hud');e.innerHTML=h;e.hidden=false;clearTimeout(hudT)}
 function hudOff(){clearTimeout(hudT);hudT=setTimeout(function(){$('hud').hidden=true},650)}
 function clampR(el,x){return Math.max(+el.min,Math.min(+el.max,x))}
@@ -540,15 +546,15 @@ stage.addEventListener('touchstart',function(e){
   sg=null;
   if(e.touches.length!==1||zoom>1||lockOn||e.target.id!=='mid'||!$('dlg').hidden)return;
   var r=stage.getBoundingClientRect(),t=e.touches[0];
-  sg={x:t.clientX,y:t.clientY,mode:null,side:(t.clientX-r.left)<r.width/2?'bri':'vol',bri:+$('bri').value,vol:+$('vol').value,cur:v.currentTime,tgt:v.currentTime,H:r.height,W:r.width};
+  sg={x:t.clientX,y:t.clientY,lx:t.clientX,lt:performance.now(),spd:0,was:false,mode:null,side:(t.clientX-r.left)<r.width/2?'bri':'vol',bri:+$('bri').value,vol:+$('vol').value,cur:v.currentTime,tgt:v.currentTime,H:r.height,W:r.width};
 },{passive:true});
 stage.addEventListener('touchmove',function(e){
   if(!sg)return;
-  if(e.touches.length!==1){sg=null;$('hud').hidden=true;return}
+  if(e.touches.length!==1){if(sg.mode==='h'){scrub=false;seekPend=null;v.currentTime=sg.tgt;if(sg.was)v.play().catch(function(){})}sg=null;$('hud').hidden=true;return}
   var t=e.touches[0],dx=t.clientX-sg.x,dy=t.clientY-sg.y;
   if(!sg.mode){
     if(Math.hypot(dx,dy)<14)return;
-    if(Math.abs(dx)>Math.abs(dy)){if(!v.duration){sg=null;return}sg.mode='h'}else sg.mode='v';
+    if(Math.abs(dx)>Math.abs(dy)){if(!v.duration){sg=null;return}sg.mode='h';sg.was=!v.paused;scrub=true;v.pause()}else sg.mode='v';
   }
   e.preventDefault();
   if(sg.mode==='v'){
@@ -556,14 +562,18 @@ stage.addEventListener('touchmove',function(e){
     if(sg.side==='bri'){var b=clampR($('bri'),sg.bri+f*1.0);$('bri').value=b;v.style.filter='brightness('+b+')';hud('Brightness<small>'+Math.round(b*100)+'%</small>')}
     else{var x=clampR($('vol'),Math.round((sg.vol+f*1.5)*20)/20);$('vol').value=x;setVol(x);hud('Volume<small>'+Math.round(x*100)+'%</small>')}
   }else{
-    var d=dx/sg.W*120;sg.tgt=Math.max(0,Math.min(v.duration,sg.cur+d));
-    var sec=Math.round(sg.tgt-sg.cur);
-    hud((sec<0?'\u2212':'+')+fmt(Math.abs(sec))+'<small>'+fmt(sg.tgt)+' / '+fmt(v.duration)+'</small>');
+    var now=performance.now(),ddx=t.clientX-sg.lx,dt=Math.max(8,now-sg.lt);
+    sg.lx=t.clientX;sg.lt=now;
+    sg.spd=sg.spd*0.6+Math.abs(ddx)/dt*0.4;
+    var fac=1+Math.min(10,sg.spd*3);
+    sg.tgt=Math.max(0,Math.min(v.duration,sg.tgt+ddx*swipeMs/1000*fac));
+    hud(fmtMs(sg.tgt)+'<small>of '+fmt(v.duration)+'</small>');
+    seekTo(sg.tgt);
   }
 },{passive:false});
 function sgDone(e){
   if(!sg)return;
-  if(e.type==='touchend'&&sg.mode==='h')v.currentTime=sg.tgt;
+  if(sg.mode==='h'){scrub=false;seekPend=null;v.currentTime=sg.tgt;if(sg.was)v.play().catch(function(){})}
   if(sg.mode)hudOff();
   sg=null;
 }
@@ -585,7 +595,7 @@ function jobStart(){
   return function(){if(done)return;done=true;job.d++;paintJob()};
 }
 function spin(on){$('spin').hidden=!on}
-['loadstart','waiting','seeking'].forEach(function(n){v.addEventListener(n,function(){if(v.getAttribute('src'))spin(true)})});
+['loadstart','waiting','seeking'].forEach(function(n){v.addEventListener(n,function(){if(v.getAttribute('src')&&!scrub)spin(true)})});
 ['canplay','playing','seeked','error','emptied'].forEach(function(n){v.addEventListener(n,function(){spin(false)})});
 v.addEventListener('error',function(){if(!v.getAttribute('src'))return;$('ph').classList.remove('hide');$('ph').lastChild.textContent='This file can\u2019t be played on this device.'});
 /* ---- Full screen on phones (hides status and navigation bars where the browser allows) ---- */
@@ -649,6 +659,18 @@ $('skipIn').onchange=function(){setSkip(this.value)};
 $('skipIn').onkeydown=function(e){if(e.key==='Enter')this.blur()};
 document.querySelectorAll('#setpop [data-s]').forEach(function(b){b.onclick=function(){setSkip(b.dataset.s)}});
 setSkip(skipS);
+var swipeMs=50;
+try{var sw0=parseInt(localStorage.getItem('ampm-set:swipe'),10);if(sw0>=5&&sw0<=1000)swipeMs=sw0}catch(e){}
+function setSwipe(n){
+  n=Math.round(+n);if(!(n>=5))n=5;if(n>1000)n=1000;
+  swipeMs=n;$('swIn').value=n;
+  try{localStorage.setItem('ampm-set:swipe',String(n))}catch(e){}
+  var b=document.querySelectorAll('#setpop [data-w]');for(var i=0;i<b.length;i++)b[i].classList.toggle('on',+b[i].dataset.w===n);
+}
+$('swIn').onchange=function(){setSwipe(this.value)};
+$('swIn').onkeydown=function(e){if(e.key==='Enter')this.blur()};
+document.querySelectorAll('#setpop [data-w]').forEach(function(b){b.onclick=function(){setSwipe(b.dataset.w)}});
+setSwipe(swipeMs);
 /* ---- Lock icon ---- */
 var LOCK_C='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 var LOCK_O='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
