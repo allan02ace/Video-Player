@@ -5,24 +5,44 @@ Read this first. It lets any Claude account (or other coding agent) continue the
 ## What it is
 A phone-first video player web app, hosted on GitHub Pages and installable as a PWA. It plays videos the person picks from their own device. Nothing is uploaded anywhere.
 
-Brand: **AMPM Player**. Logo is a purple gradient circle with a white play triangle (supplied by the owner as `icons/icon-512.png`; the other icons and `icon.svg` are derived from it). Accent `#7c3aed`, dark frame `#1a1030`, gradient `#a78bfa` to `#6d28d9`.
+Brand: **AMPM Player**. Logo is a purple gradient circle with a white play triangle (`icons/icon-512.png`; the other icons and `icon.svg` are derived from it). Accent `#7c3aed`, dark frame `#1a1030`, gradient `#a78bfa` to `#6d28d9`.
+
+## Which version this is
+This file describes the **lean version** (`index.html`, about 45 KB, about 650 lines). An older handoff described a bigger build (editable shortcut table, Advanced settings popover, swipe gestures, saved library in IndexedDB, Last added / Recover, Media Session, 3x volume swipe, no-auto-landscape). **None of that is in the current `index.html`.** A damaged copy of that bigger build existed once (many functions missing, so it could not run). If a complete copy of it turns up, compare before building on either file. Do not trust any older note about features that are not listed below.
 
 ## Files
 - `index.html`: the whole app (HTML, CSS and JS in one file, no libraries, no build step).
 - `manifest.webmanifest`: PWA name, colors, icons.
-- `sw.js`: service worker. Network-first, falls back to cache. **Bump `const C='ampm-v14'` whenever `index.html` changes** so phones pick up the update.
-- `icons/`: `icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png` (maskable and apple-touch are full-bleed squares with the triangle in the safe zone).
-- `README.md`: GitHub Pages and install steps for the owner.
+- `sw.js`: service worker (see below). **Bump `const C='ampm-vN'` whenever `index.html` changes** so phones pick up the update. Current value: `ampm-v14`.
+- `icons/`: `icon.svg`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`.
+- `README.md`: GitHub Pages and install steps for the owner. It still mentions "Save a copy on this device" and "Last added", which belong to the bigger build and are not in this version.
 
-## Features (all working in code, not yet tested on a real phone)
-- Library with folder chips, folder list, video list with generated thumbnails, search (prompt), light/dark toggle.
-- "Add videos" (file picker) and "Add folder" (`webkitdirectory`, subfolders become folders; most phones can't do this, so everything lands in "Library").
-- Player: play/pause, prev/next (auto-advance), seek bar, volume and brightness popover, speed cycle (1x, 1.25x, 1.5x, 2x, 0.5x, 0.75x), fit/fill, rotate 90 degrees, repeat, audio-only, picture-in-picture, fullscreen (hidden if unsupported), controls lock, auto-hiding controls.
-- Keyboard: Space play/pause (works even with a button focused), Left/Right 10 s, F fullscreen, M mute, C subtitles on/off, G/H subtitle offset -/+0.1 s.
-- SRT subtitles: CC button opens the panel. Load a .srt, drop one on the video, or auto-attach when a `.srt` has the same name as the video and the same folder. Offset field, nudge buttons (-0.5, -0.1, +0.1, +0.5), "Line starts now" (syncs nearest cue to the current time), reset, text size, show/hide, remove. Positive offset delays subtitles.
-- Phone flow: on touch or narrow screens the app opens on the library only. Tapping a video opens the full-screen player (`.app.playing`). Back arrow or the phone back gesture returns to the library (uses `history.pushState` and `popstate`).
-- Resume: playback position is saved to `localStorage` as `ampm:<key>` = `{t, d}` (seconds, duration). Tapping a partly watched video shows "Continue from mm:ss" or "Start over". The thumbnail shows a progress bar.
-- Touch: single tap shows/hides controls, double-tap left or right third skips 10 s, double-tap middle plays/pauses.
+## Features in the current index.html
+- **Library:** folder chips, folder list, video list with generated thumbnails (made through a queue, 2 at a time), search (a `prompt()`), light/dark toggle. "Add videos" (file picker, also accepts audio and `.srt`) and "Add folder" (`webkitdirectory`; subfolders become folders; most phones cannot do this, so everything lands in "Library").
+- **Fullscreen:** on desktop (mouse), the fullscreen button and the F key fullscreen only `#stage` (`.fs-wrap:fullscreen` removes the frame), so the library panel is hidden and only the video with its controls shows, like VLC; Esc exits. On touch devices the whole page goes fullscreen (`enterFS` when a video opens, and the button). Keep all player UI (controls, subtitles, bubble, hover tip, resume dialog) inside `#stage`, otherwise it disappears in desktop fullscreen.
+- **Player controls:** play/pause, prev/next (auto-advance when a video ends), seek bar, volume and brightness popover, speed cycle (1x, 1.25x, 1.5x, 2x, 0.5x, 0.75x), fit/fill, rotate 90 degrees, repeat, audio-only, picture-in-picture, fullscreen (hidden if unsupported), controls lock, auto-hiding controls.
+- **Volume:** the slider goes to 300%. Above 100% (or once boosted) it uses a Web Audio gain plus a limiter. The audio graph is created lazily (`bootAudio`) because on iPhone Web Audio follows the silent switch while normal video does not. `volBy(d)` changes volume in 5% steps and shows the bubble.
+- **Volume bar:** `#vbar` is a vertical bar on the right edge of the player (percentage on top, fill up to 300%, amber above 100%), shown for about 0.9 s by `showVol(x)` whenever volume changes by keys, wheel or swipe.
+- **On-screen bubble:** `#hud`, shown by `flash(html)` for about 0.9 s. Used by volume and the sleep timer.
+- **Skip time display (VLC style):** `seekBy(sec)` moves the position and `flashTime(t)` shows plain outlined text such as `58:20 / 1:26:35` in the upper right corner of the player for about 1.3 s (`#hud` with class `osd`, which overrides the centred bubble position; `flash()` removes the class). Used by the Left/Right keys, double-tap skips (both 10 s) and the sideways swipe. The seek bar, prev/next buttons and G/H do not use it.
+- **Sleep timer:** moon pill `#slBtn` opens `#slpop`: 15, 30, 45, 60 minutes, End of video, Off. It stores an end time (`sleepEnd`, wall clock, so it is correct when the screen is off) and is checked every second and on `timeupdate`. "End of video" sets `sleepEndVid`, and `v.onended` pauses instead of advancing (with Repeat on, the video never ends, so it waits). While active the pill shows `28m` or `End`.
+- **Seek bar hover time:** a mouse hovering `#bar` shows `#tip` with the time under the pointer (touch is ignored). Clicking the bar already seeks natively.
+- **Keyboard** (one `keydown` handler, fixed keys, not rebindable): Space play/pause, Up/Down volume (5%), Left/Right 10 s, F fullscreen, M mute, C subtitles on/off, G/H subtitle offset -/+0.1 s. Arrow keys also work while a slider has focus (the handler calls `preventDefault`, so the slider does not move twice). Mouse wheel over the video changes volume; Ctrl+wheel is zoom.
+- **SRT subtitles:** CC button opens the panel. Load a `.srt`, drop one on the video, or auto-attach when a `.srt` has the same name as the video and the same folder. Offset field, nudge buttons (-0.5, -0.1, +0.1, +0.5), "Line starts now", reset, text size, show/hide, remove. Positive offset delays subtitles.
+- **Phone flow:** on touch or narrow screens the app opens on the library only. Tapping a video opens the full-screen player (`.app.playing`). Back arrow or the phone back gesture returns to the library (`history.pushState` and `popstate`). Opening a video calls `requestFullscreen` on touch devices (`enterFS`).
+- **Resume:** playback position saved to `localStorage` as `ampm:<key>` = `{t, d}` (seconds, duration). Tapping a partly watched video shows "Continue from mm:ss" or "Start over". The thumbnail shows a progress bar.
+- **Touch gestures:** single tap shows/hides controls, double-tap left or right third skips 10 s, double-tap middle plays/pauses. Pinch zoom (video only, 1x to 5x) with drag to pan and a "Reset" chip.
+- **Swipe gestures** (one finger on `#mid`; off while zoomed, controls locked, or the resume dialog is open): swipe sideways to scrub in fine steps (`SWIPE_MS=30` ms of video per pixel, constant, no speed boost; the video pauses while dragging, the picture follows the finger as a live preview, the VLC-style time is shown, and playback resumes on release if it was playing; seeks are one at a time and always jump to the newest finger position (`pumpSeek`), because starting a new seek every frame stops phones from drawing any frame until the finger stops); swipe up/down on the right half for volume, on the left half for brightness of the picture only (a CSS `filter` on the video; web pages cannot change the phone's screen backlight, there is no browser API for it) (a swipe the height of the stage moves volume by 100% and brightness across its whole range; they share the `#vol` and `#bri` sliders). Movement under 14 px is still a tap, and the click that follows a swipe is ignored (`noClickUntil`). In the forced-landscape layout (`.app.land`) the axes are swapped to match the rotated stage (`swAxes`). The spinner is suppressed while scrubbing (`scrub`).
+- **Auto landscape (phones):** wide videos try `screen.orientation.lock('landscape')`; if that is refused, CSS `.app.land` rotates the layout instead (`autoOrient`, `setLand`). `.app.wide` left-aligns the pills in real landscape.
+
+## Not in this version (ideas, in rough priority)
+1. Rebindable shortcuts and a settings popover (skip length, swipe seek ms/px; today `SWIPE_MS` and the 10 s skips are constants in the code).
+2. Remembered volume, brightness and speed between visits.
+3. Saved library across visits (IndexedDB), Last added / Recover.
+4. Background playback controls (Media Session).
+5. Create folders and move videos on phones.
+6. `.vtt` and `.ass` subtitles; export the re-timed `.srt`; subtitle font and colour options.
+7. Remote video links (fine on GitHub Pages for direct `.mp4`; YouTube links cannot play in a custom `<video>` player).
 
 ## How the code is organised (inside `index.html`)
 One IIFE. Main state: `items[]`, `idx` (current), `folder`, `q`, `cues`, `off`, `lockOn`.
@@ -30,45 +50,25 @@ One IIFE. Main state: `items[]`, `idx` (current), `folder`, `q`, `cues`, `off`, 
 - `addFiles()` adds videos and registers `.srt` files in `srtFiles['<folder>/<name lowercase>']`.
 - `load(i, go)` sets the source, applies subtitles (`useSubs`), shows the player pane, and decides whether to ask to resume (`askResume`).
 - Subtitles: `parseSrt`, `paintCap` (runs every animation frame; effective time is `currentTime - off`).
-- Phone and resume block sits near the end, just above the `resize` listener.
 - Layout switches at `@media (max-width:820px),(pointer:coarse)`.
+- Popovers (`#pop` volume, `#subpop` subtitles, `#slpop` sleep timer) close each other; each pill button removes the others' `show` class. Add new popovers the same way.
 
 ## Gotchas learned the hard way
 - The control overlay `.ov` covers the whole video, so taps must be handled on `#mid` (the empty middle area), not on the `<video>`.
 - Do not add a `touchstart` handler that wakes the controls; it fights the tap-to-hide logic.
 - Progress saving is skipped while the resume dialog is open, otherwise a new video would overwrite the saved position with 0.
 - Browsers cannot keep access to picked files between visits, so the library is rebuilt each session. Resume still works because `key` matches the same file.
-- Inside `sw.js`, only same-origin requests are cached; blob video URLs are ignored on purpose.
+- Thumbnails go through a queue (`makeThumb`, `genThumb`) and list redraws are debounced (`renderSoon`). Do not create one hidden video per file at once.
+- Keep all player UI inside `#stage`; the hud and hover tip are positioned against it.
 - Typography: use curly apostrophes and quotes in visible text.
+- Before finishing any change, check the script parses (extract the `<script>` and run `new Function(code)` in Node) and that every function it calls is defined. A past copy broke because dozens of functions were missing while the syntax was still valid.
 
-- Pinch zoom only affects the video (two fingers, drag to pan, "Reset" chip). Page zoom is blocked by the viewport meta, `touch-action`, and `gesturestart`.
-- The library shows an "Adding videos... x of y" bar (`#ldr`); the player shows a spinner (`#spin`) while loading or buffering.
-
-- Desktop fullscreen (VLC style): the fullscreen button, the F key and a double-click on the video fullscreen only `#stage` (`.stage:fullscreen` removes the frame), so the library panel is hidden; Esc exits. Everything the player needs (controls, subtitles, HUD, resume dialog) lives inside `#stage`, so keep new player UI inside it. Phones still fullscreen `documentElement`. A single click still plays/pauses, so a double-click toggles pause twice (net no change) and then goes fullscreen.
-- Advanced settings: the gear pill (`#setBtn`, popover `#setpop`) holds the double-tap skip length in seconds (1 to 600, default 10, presets 5/10/15/30/60). Stored in `localStorage` as `ampm-set:skip`; used by `skip()` for double-tap only (keyboard arrows and lock-screen seek still use 10 s). The same popover holds the swipe seek ms/px. New settings should go in this popover.
-- Swipe gestures (on `#mid`, one finger, only when not zoomed and controls are not locked): vertical swipe on the left half changes brightness, on the right half volume (full swipe is about 100% volume; it shares the `#vol`/`#bri` sliders); horizontal swipe scrubs: the video pauses, seeks live as the finger moves (latest-wins `seekTo`) and resumes on release if it was playing. Time per pixel = `swipeMs` (default 50 ms, setting `ampm-set:swipe`, 5 to 1000) times a speed factor (1 up to 11x for fast swipes). The bubble shows only the new time with milliseconds (`fmtMs`); the spinner is suppressed while `scrub`. A `#hud` bubble shows the value. A swipe that moves under 14 px is still a tap. Pinch zoom and pan are the older zoom code.
-- Background playback: nothing pauses the video when the page is hidden. A Media Session (title, icon artwork, play/pause, prev/next, seek, position) gives lock-screen and notification controls. `wantPlay` is true after play and false after an explicit pause (`userPause()`, used by the pause button, lock-screen pause and leaving the player); if the browser pauses while hidden and `wantPlay` is set, the player calls `play()` again, and a suspended Web Audio context is resumed. Leaving the player (back) still stops playback. iPhone Safari may still stop video audio when the screen locks; the audio-only button makes that more likely to keep going.
-- No auto landscape: the player never locks or forces orientation. For wide videos the user turns on auto-rotate on their phone and physically rotates it; `.app.wide` still applies when the window is really wider than tall. (The old `screen.orientation.lock` and CSS `.app.land` forced rotation were removed.)
-
-- Thumbnails are made through a queue (2 at a time, `makeThumb` / `genThumb`), each hidden video is released when done, and list redraws are debounced (`renderSoon`). Do not go back to creating one video per file at once.
-
-- Full screen: on touch devices opening a video calls `requestFullscreen` on the page (enterFS) and leaving the player exits it. This hides the status bar on Android. iPhone Safari does not allow it for web pages, so the status bar stays (the player draws under it and keeps controls clear of it). 
-
-- Wide layout: `.app.wide` (real landscape) left-aligns the pills and centres prev/play/next over the video. `#probe` and `--fw/--fh` are still set on resize but no longer used by any CSS.
-- Lock button swaps between an open and a closed padlock and turns purple while locked.
-- Volume slider goes to 300%. Above 100% (or once boosted) it uses a Web Audio gain plus a limiter. The audio graph is created lazily because on iPhone Web Audio follows the silent switch while normal video does not.
-
-## Not done yet (ideas, in rough priority)
-1. Create folders and move videos into them on phones.
-2. Persist the library across visits (would need copying files into IndexedDB, which is heavy).
-3. `.vtt` and `.ass` subtitles; export the re-timed `.srt`.
-4. Subtitle font and colour options.
-5. Remembered speed and volume.
-6. Remote video links: not possible in the original Claude-hosted preview (blocked network), but fine on GitHub Pages for direct `.mp4` links. YouTube links cannot play in a custom `<video>` player.
+## Service worker (`sw.js`)
+Network-first with a cache fallback. It pre-caches the app shell (`./`, `index.html`, manifest, all icons including `maskable-512.png`), deletes older caches on activate, and only handles same-origin GET requests (blob video URLs are never touched). It stores only full `200` responses of type `basic` (no partial `206` or error responses). Offline, a failed navigation gets `index.html`; a failed file request fails cleanly instead of returning the page. Query strings are ignored when matching. There is no network timeout, so on a very slow connection the app waits for the network before using the cache.
 
 ## Deploying
-Upload the folder to a GitHub repo, then Settings, Pages, branch `main`, `/ (root)`. On a phone: Android Chrome menu, Install app; iPhone Safari Share, Add to Home Screen.
+Upload the folder to a GitHub repo, then Settings, Pages, branch `main`, `/ (root)`. On a phone: Android Chrome menu, Install app; iPhone Safari Share, Add to Home Screen. After changing `index.html`, bump the cache name in `sw.js`, reopen the app online, and reload once.
 
 ## Prompt to continue in a new Claude account
-Upload this folder (or the zip) and say:
-"This is my AMPM Player web app. Read AGENTS.md first, then continue with: <your request>. Keep it a single index.html with no build step, and bump the cache name in sw.js after changes."
+Upload this folder (or the files) and say:
+"This is my AMPM Player web app. Read AGENTS.md first, then continue with: <your request>. Keep it a single index.html with no build step, bump the cache name in sw.js after changes, and send files individually, not as a zip."

@@ -80,13 +80,18 @@ video{width:100%;height:100%;object-fit:contain;background:#0b1a22;display:block
 .locked .lockrow{visibility:visible}
 .locked .ov{background:none}
 .lockrow{display:flex}
-.fs-wrap:fullscreen{border-radius:0}
-.stage:fullscreen{border:0;border-radius:0;background:#000}
-.stage:fullscreen video{background:#000}
+.fs-wrap:fullscreen{border-radius:0;border:0;background:#000}
 .stage{touch-action:none}
 .zchip{position:absolute;top:calc(118px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:4;background:var(--accent);color:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600}
 .zchip[hidden],.spin[hidden],.load[hidden],.hud[hidden]{display:none}
 .hud{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:4;background:#000b;color:#fff;border-radius:16px;padding:12px 20px;font-size:17px;font-weight:600;text-align:center;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hud.osd{top:calc(10px + env(safe-area-inset-top,0px));left:auto;right:18px;transform:none;text-align:right;background:none;padding:0;border-radius:0;font-size:clamp(22px,3.4vw,34px);font-weight:700;letter-spacing:.5px;text-shadow:0 0 2px #000,0 0 4px #000,2px 2px 4px #000,-1px -1px 2px #000;-webkit-text-stroke:1px #000;paint-order:stroke fill}
+.vbar{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:5;height:min(40%,260px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;color:#fff;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;text-shadow:0 0 3px #000,1px 1px 3px #000}
+.vbar[hidden]{display:none}
+.vtr{flex:1;width:10px;border-radius:6px;background:#00000088;border:1px solid #ffffff55;overflow:hidden;display:flex;align-items:flex-end}
+.vtr i{display:block;width:100%;background:var(--accent);border-radius:6px}
+.vbar.hi .vtr i{background:#fbbf24}
+.tip{position:absolute;z-index:5;transform:translateX(-50%);background:#000c;color:#fff;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;pointer-events:none;white-space:nowrap}
 .hud small{display:block;font-size:12px;font-weight:500;opacity:.75;margin-top:2px}
 .spin{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;border:5px solid #ffffff44;border-top-color:#a78bfa;animation:spinr .8s linear infinite;z-index:3;pointer-events:none}
 @keyframes spinr{to{transform:rotate(360deg)}}
@@ -106,6 +111,9 @@ video{width:100%;height:100%;object-fit:contain;background:#0b1a22;display:block
 #pop .prow input{flex:1;width:auto;min-width:0}
 #volTxt{width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .locked #lock{background:var(--accent);border-radius:50%}
+.app.playing.land .stage{inset:auto;top:0;left:var(--fw,100vw);width:var(--fh,100dvh);height:var(--fw,100vw);transform:rotate(90deg);transform-origin:0 0}
+.land .ov{padding:8px calc(18px + env(safe-area-inset-bottom,0px)) 8px calc(18px + env(safe-area-inset-top,0px))}
+.land .cap{bottom:130px}.land .stage.idle .cap{bottom:24px}.land .zchip{top:100px}
 .top button{width:40px;height:40px;display:grid;place-items:center}
 .bot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-top:10px}
 .bot>:first-child{justify-self:start}.bot>:last-child{justify-self:end}
@@ -185,15 +193,12 @@ video{background:#000}
     <button class="pill" id="rot" aria-label="Rotate video"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></button>
     <button class="pill" id="loop" aria-label="Repeat"><svg viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/></svg></button>
     <button class="pill" id="ccBtn" aria-label="Subtitles" style="font-size:13px">CC</button>
-    <button class="pill" id="setBtn" aria-label="Advanced settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-    <div class="pop subs" id="setpop">
-     <div class="row"><b style="flex:1">Advanced settings</b></div>
-     <div class="row"><span style="flex:1">Double-tap skip</span><input id="skipIn" type="number" min="1" max="600" step="1" value="10" inputmode="numeric" aria-label="Double-tap skip in seconds"><span>s</span></div>
-     <div class="row"><button class="sb" data-s="5">5</button><button class="sb" data-s="10">10</button><button class="sb" data-s="15">15</button><button class="sb" data-s="30">30</button><button class="sb" data-s="60">60</button></div>
-     <div class="row"><span style="flex:1">Swipe seek</span><input id="swIn" type="number" min="5" max="1000" step="5" value="50" inputmode="numeric" aria-label="Swipe seek in milliseconds per pixel"><span>ms/px</span></div>
-     <div class="row"><button class="sb" data-w="10">10</button><button class="sb" data-w="25">25</button><button class="sb" data-w="50">50</button><button class="sb" data-w="100">100</button><button class="sb" data-w="250">250</button></div>
-     <div class="s2">Swipe seek is the time moved for each pixel you drag sideways. Lower is finer. A fast swipe moves further, and the picture follows your finger.</div>
-     <div class="s2">Double-tap the left third of the video to go back and the right third to go forward by this many seconds. Double-tap the middle to play or pause. Saved on this device.</div>
+    <button class="pill" id="slBtn" aria-label="Sleep timer"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <div class="pop subs" id="slpop">
+     <div class="row"><b style="flex:1">Sleep timer</b><span id="slStat" class="s2">Off</span></div>
+     <div class="row"><button class="sb" data-m="15">15 min</button><button class="sb" data-m="30">30 min</button><button class="sb" data-m="45">45 min</button><button class="sb" data-m="60">60 min</button></div>
+     <div class="row"><button class="sb" data-m="end">End of video</button><button class="sb" data-m="0">Off</button></div>
+     <div class="s2">Pauses playback when the time is up.</div>
     </div>
     <div class="pop subs" id="subpop">
      <div class="row"><b style="flex:1">Subtitles</b><label><input type="checkbox" id="subOn" checked> Show</label></div>
@@ -224,6 +229,8 @@ video{background:#000}
  </div>
 <div class="spin" id="spin" hidden></div>
 <div class="hud" id="hud" hidden></div>
+<div class="vbar" id="vbar" hidden><b id="vbT">100%</b><div class="vtr"><i id="vbF"></i></div></div>
+<div class="tip" id="tip" hidden></div>
 <button class="zchip" id="zchip" hidden>Zoom 1.0× · Reset</button>
 <div class="dlg" id="dlg" hidden><div class="card"><div class="t"><b>Continue watching?</b></div><div class="s" id="dlgS"></div><button class="btn" id="dlgGo">Continue</button><button class="btn alt" id="dlgNew">Start over</button></div></div>
 <div class="cap" id="cap"></div>
@@ -325,20 +332,18 @@ function load(i,go){
   var sv=getProg(items[i]);
   if(go&&sv&&sv.t>5&&(!sv.d||sv.t<sv.d-8))askResume(sv);
   else if(go)v.play().catch(function(){});
-  msMeta();render();
+  render();
 }
 $('fileIn').onchange=function(e){addFiles(e.target.files,false);e.target.value=''};
 $('dirIn').onchange=function(e){addFiles(e.target.files,true);e.target.value=''};
 document.querySelectorAll('label.btn').forEach(function(l){l.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();l.querySelector('input').click()}}});
 
-var wantPlay=false;
-function userPause(){wantPlay=false;v.pause()}
-function toggle(){if(idx<0){if(items.length)load(0,true);return}v.paused?v.play():userPause()}
+function toggle(){if(idx<0){if(items.length)load(0,true);return}v.paused?v.play():v.pause()}
 $('play').onclick=toggle;
 v.onclick=function(){if(!lockOn)toggle()};
 v.onplay=function(){$('play').innerHTML=PAUSE;$('play').setAttribute('aria-label','Pause')};
 v.onpause=function(){$('play').innerHTML=PLAY;$('play').setAttribute('aria-label','Play')};
-v.onended=function(){if(!v.loop&&idx<items.length-1)load(idx+1,true)};
+v.onended=function(){if(sleepEndVid){sleepFire();return}if(!v.loop&&idx<items.length-1)load(idx+1,true)};
 $('next').onclick=function(){load(idx+1,true)};
 $('prev').onclick=function(){if(v.currentTime>3)v.currentTime=0;else load(idx-1,true)};
 v.ontimeupdate=function(){$('cur').textContent=fmt(v.currentTime);if(v.duration&&!seeking){$('bar').value=v.currentTime/v.duration*1000;$('bar').style.setProperty('--p',v.currentTime/v.duration*100+'%')}};
@@ -346,12 +351,52 @@ v.onloadedmetadata=function(){$('dur').textContent=fmt(v.duration)};
 var seeking=false,bar=$('bar');
 bar.oninput=function(){seeking=true;bar.style.setProperty('--p',bar.value/10+'%');if(v.duration)v.currentTime=bar.value/1000*v.duration};
 bar.onchange=function(){seeking=false};
+/* hover (mouse) over the seek bar shows the time under the pointer */
+function tipShow(e){
+  if(e.pointerType&&e.pointerType!=='mouse')return;
+  if(!isFinite(v.duration)||!v.duration){$('tip').hidden=true;return}
+  var r=bar.getBoundingClientRect(),sr=stage.getBoundingClientRect(),th=8;
+  var f=Math.max(0,Math.min(1,(e.clientX-r.left-th)/Math.max(1,r.width-2*th)));
+  var t=$('tip');t.textContent=fmt(f*v.duration);t.hidden=false;
+  var x=e.clientX-sr.left-stage.clientLeft,half=t.offsetWidth/2+6;
+  x=Math.max(half,Math.min(stage.clientWidth-half,x));
+  t.style.left=x+'px';t.style.top=(r.top-sr.top-stage.clientTop-t.offsetHeight-8)+'px';
+}
+bar.addEventListener('pointermove',tipShow);
+bar.addEventListener('pointerenter',tipShow);
+bar.addEventListener('pointerleave',function(){$('tip').hidden=true});
 
 var sp=0;
 $('spd').onclick=function(){sp=(sp+1)%speeds.length;v.playbackRate=speeds[sp];$('spd').textContent=speeds[sp]+'x'};
-$('volBtn').onclick=function(){$('subpop').classList.remove('show');$('setpop').classList.remove('show');$('pop').classList.toggle('show')};
+$('volBtn').onclick=function(){$('subpop').classList.remove('show');$('slpop').classList.remove('show');$('pop').classList.toggle('show')};
 $('vol').oninput=function(e){setVol(+e.target.value)};
 $('bri').oninput=function(e){v.style.filter='brightness('+e.target.value+')'};
+/* ---- Small on-screen bubble and keyboard/wheel volume ---- */
+var hudT;
+function flash(h){var b=$('hud');b.classList.remove('osd');b.innerHTML=h;b.hidden=false;clearTimeout(hudT);hudT=setTimeout(function(){b.hidden=true},900)}
+/* VLC-style position display: "58:20 / 1:26:35" */
+function flashTime(t){
+  var b=$('hud');b.classList.add('osd');
+  b.textContent=fmt(t)+(isFinite(v.duration)&&v.duration?' / '+fmt(v.duration):'');
+  b.hidden=false;clearTimeout(hudT);hudT=setTimeout(function(){b.hidden=true},1300);
+}
+function seekBy(sec){
+  if(!v.getAttribute('src'))return;
+  var t=v.currentTime+sec,d=isFinite(v.duration)?v.duration:1e9;
+  t=Math.max(0,Math.min(d,t));v.currentTime=t;flashTime(t);
+}
+var vbT;
+function showVol(x){
+  var b=$('vbar');$('vbT').textContent=Math.round(x*100)+'%';
+  $('vbF').style.height=Math.min(100,x/3*100)+'%';b.classList.toggle('hi',x>1);
+  b.hidden=false;clearTimeout(vbT);vbT=setTimeout(function(){b.hidden=true},900);
+}
+function volBy(d){
+  var r=$('vol'),x=Math.round((+r.value+d)*20)/20;
+  x=Math.max(+r.min,Math.min(+r.max,x));
+  r.value=x;setVol(x);if(v.muted&&d>0)v.muted=false;
+  showVol(x);
+}
 $('fit').onclick=function(){var c=v.style.objectFit==='cover';v.style.objectFit=c?'contain':'cover';$('fit').classList.toggle('on',!c)};
 function applyRot(){
   var r=rot%180!==0,s=r?Math.min(stage.clientHeight/stage.clientWidth,stage.clientWidth/stage.clientHeight):1,t='';
@@ -364,13 +409,11 @@ $('rot').onclick=function(){rot=(rot+90)%360;applyRot()};
 $('loop').onclick=function(){v.loop=!v.loop;$('loop').classList.toggle('on',v.loop)};
 $('audioBtn').onclick=function(){audioOnly=!audioOnly;stage.classList.toggle('audio',audioOnly)};
 $('pip').onclick=function(){if(document.pictureInPictureEnabled&&idx>=0){document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture().catch(function(){})}};
-/* Fullscreen: on desktop only the player (#stage) goes fullscreen, so the library panel is hidden, like VLC. Phones fullscreen the whole page. */
 $('full').onclick=function(){
   if(document.fullscreenElement){document.exitFullscreen();return}
-  var el=coarse?document.documentElement:stage;
-  if(el.requestFullscreen)el.requestFullscreen().catch(function(){});
+  var t=coarse?document.documentElement:stage;   /* desktop: fullscreen only the player, so the library is hidden */
+  if(t.requestFullscreen)t.requestFullscreen().catch(function(){});
 };
-$('mid').addEventListener('dblclick',function(){if(!coarse&&!lockOn)$('full').click()});
 $('back').onclick=function(){closePlayer()};
 
 var lockBtn=$('lock');
@@ -387,8 +430,10 @@ document.addEventListener('keydown',function(e){
   if(/INPUT|TEXTAREA/.test(e.target.tagName)&&e.target.type!=='range')return;
   if(lockOn)return;
   if(e.key===' '&&e.target.tagName!=='LABEL'){e.preventDefault();toggle()}
-  else if(e.key==='ArrowRight')v.currentTime+=10;
-  else if(e.key==='ArrowLeft')v.currentTime-=10;
+  else if(e.key==='ArrowUp'&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();volBy(0.05)}
+  else if(e.key==='ArrowDown'&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();volBy(-0.05)}
+  else if(e.key==='ArrowRight'){e.preventDefault();seekBy(10)}
+  else if(e.key==='ArrowLeft'){e.preventDefault();seekBy(-10)}
   else if(e.key==='f')$('full').click();
   else if(e.key==='m')v.muted=!v.muted;
   else if(e.key==='c')$('subOn').click();
@@ -442,7 +487,7 @@ function paintCap(){
   if(k!==lastKey){lastKey=k;cap.innerHTML=k>=0?'<span>'+cues[k].t+'</span>':''}
 }
 (function loop(){paintCap();requestAnimationFrame(loop)})();
-$('ccBtn').onclick=function(){$('pop').classList.remove('show');$('setpop').classList.remove('show');$('subpop').classList.toggle('show')};
+$('ccBtn').onclick=function(){$('pop').classList.remove('show');$('slpop').classList.remove('show');$('subpop').classList.toggle('show')};
 $('srtIn').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f)attachSrt(f)};
 $('srtLbl').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('srtIn').click()}};
 $('subOn').onchange=function(e){subOn=e.target.checked;lastKey=-2;status()};
@@ -490,7 +535,7 @@ document.addEventListener('visibilitychange',function(){if(document.hidden)saveN
 window.addEventListener('pagehide',function(){saveNow(true)});
 function pushPlayerState(){try{if(!pushed){history.pushState({p:1},'');pushed=true}}catch(e){}}
 function closePlayer(fromPop){
-  $('dlg').hidden=true;userPause();$('app').classList.remove('playing');
+  $('dlg').hidden=true;v.pause();$('app').classList.remove('playing');unlockOri();setLand(false);
   if(document.fullscreenElement)document.exitFullscreen();
   var was=pushed;pushed=false;
   if(was&&!fromPop)history.back();
@@ -498,12 +543,13 @@ function closePlayer(fromPop){
 }
 window.addEventListener('popstate',function(){if(pushed)closePlayer(true)});
 $('mid').addEventListener('click',function(e){
+  if(Date.now()<noClickUntil)return;
   if(lockOn){wake();return}
   if(!coarse){toggle();return}
-  var now=Date.now(),r=this.getBoundingClientRect(),f=(e.clientX-r.left)/r.width;
+  var now=Date.now(),r=this.getBoundingClientRect(),land=$('app').classList.contains('land'),f=land?(e.clientY-r.top)/r.height:(e.clientX-r.left)/r.width;
   if(now-lastTap<300){
     clearTimeout(tapT);lastTap=0;
-    if(f<1/3)skip(-1);else if(f>2/3)skip(1);else toggle();
+    if(f<1/3)seekBy(-10);else if(f>2/3)seekBy(10);else toggle();
   }else{
     lastTap=now;
     tapT=setTimeout(function(){if(stage.classList.contains('idle'))wake();else stage.classList.add('idle')},300);
@@ -525,7 +571,7 @@ stage.addEventListener('touchstart',function(e){
 stage.addEventListener('touchmove',function(e){
   if(isCtl(e.target))return;
   if(e.touches.length===2&&pd){e.preventDefault();zoom=Math.max(1,Math.min(5,pz*dist(e)/pd));clampPan();applyRot()}
-  else if(e.touches.length===1&&pan&&zoom>1){e.preventDefault();var dx=e.touches[0].clientX-pan.x,dy=e.touches[0].clientY-pan.y;tx=pan.tx+dx;ty=pan.ty+dy;clampPan();applyRot()}
+  else if(e.touches.length===1&&pan&&zoom>1){e.preventDefault();var dx=e.touches[0].clientX-pan.x,dy=e.touches[0].clientY-pan.y;if($('app').classList.contains('land')){tx=pan.tx+dy;ty=pan.ty-dx}else{tx=pan.tx+dx;ty=pan.ty+dy}clampPan();applyRot()}
 },{passive:false});
 function touchDone(e){
   if(e.touches.length<2)pd=0;
@@ -534,53 +580,112 @@ function touchDone(e){
   if(zoom>1&&zoom<1.03)resetZoom();
 }
 stage.addEventListener('touchend',touchDone);stage.addEventListener('touchcancel',touchDone);
-/* ---- Swipe gestures: left side brightness, right side volume, horizontal seek ---- */
-var sg=null,hudT,scrub=false,seekPend=null;
-function fmtMs(t){t=Math.max(0,t);return fmt(t)+'.'+String(Math.floor((t%1)*1000)).padStart(3,'0')}
-function seekTo(t){if(v.seeking)seekPend=t;else{seekPend=null;v.currentTime=t}}
-v.addEventListener('seeked',function(){if(scrub&&seekPend!=null){var t=seekPend;seekPend=null;v.currentTime=t}});
-function hud(h){var e=$('hud');e.innerHTML=h;e.hidden=false;clearTimeout(hudT)}
-function hudOff(){clearTimeout(hudT);hudT=setTimeout(function(){$('hud').hidden=true},650)}
-function clampR(el,x){return Math.max(+el.min,Math.min(+el.max,x))}
-stage.addEventListener('touchstart',function(e){
-  sg=null;
-  if(e.touches.length!==1||zoom>1||lockOn||e.target.id!=='mid'||!$('dlg').hidden)return;
-  var r=stage.getBoundingClientRect(),t=e.touches[0];
-  sg={x:t.clientX,y:t.clientY,lx:t.clientX,lt:performance.now(),spd:0,was:false,mode:null,side:(t.clientX-r.left)<r.width/2?'bri':'vol',bri:+$('bri').value,vol:+$('vol').value,cur:v.currentTime,tgt:v.currentTime,H:r.height,W:r.width};
-},{passive:true});
-stage.addEventListener('touchmove',function(e){
-  if(!sg)return;
-  if(e.touches.length!==1){if(sg.mode==='h'){scrub=false;seekPend=null;v.currentTime=sg.tgt;if(sg.was)v.play().catch(function(){})}sg=null;$('hud').hidden=true;return}
-  var t=e.touches[0],dx=t.clientX-sg.x,dy=t.clientY-sg.y;
-  if(!sg.mode){
-    if(Math.hypot(dx,dy)<14)return;
-    if(Math.abs(dx)>Math.abs(dy)){if(!v.duration){sg=null;return}sg.mode='h';sg.was=!v.paused;scrub=true;v.pause()}else sg.mode='v';
-  }
-  e.preventDefault();
-  if(sg.mode==='v'){
-    var f=-dy/(sg.H*0.8);
-    if(sg.side==='bri'){var b=clampR($('bri'),sg.bri+f*1.0);$('bri').value=b;v.style.filter='brightness('+b+')';hud('Brightness<small>'+Math.round(b*100)+'%</small>')}
-    else{var x=clampR($('vol'),Math.round((sg.vol+f*1.5)*20)/20);$('vol').value=x;setVol(x);hud('Volume<small>'+Math.round(x*100)+'%</small>')}
-  }else{
-    var now=performance.now(),ddx=t.clientX-sg.lx,dt=Math.max(8,now-sg.lt);
-    sg.lx=t.clientX;sg.lt=now;
-    sg.spd=sg.spd*0.6+Math.abs(ddx)/dt*0.4;
-    var fac=1+Math.min(10,sg.spd*3);
-    sg.tgt=Math.max(0,Math.min(v.duration,sg.tgt+ddx*swipeMs/1000*fac));
-    hud(fmtMs(sg.tgt)+'<small>of '+fmt(v.duration)+'</small>');
-    seekTo(sg.tgt);
-  }
-},{passive:false});
-function sgDone(e){
-  if(!sg)return;
-  if(sg.mode==='h'){scrub=false;seekPend=null;v.currentTime=sg.tgt;if(sg.was)v.play().catch(function(){})}
-  if(sg.mode)hudOff();
-  sg=null;
-}
-stage.addEventListener('touchend',sgDone);stage.addEventListener('touchcancel',sgDone);
 $('zchip').onclick=resetZoom;
 stage.addEventListener('wheel',function(e){if(!e.ctrlKey)return;e.preventDefault();zoom=Math.max(1,Math.min(5,zoom-e.deltaY*0.01));if(zoom<1.02){zoom=1;tx=ty=0}clampPan();applyRot()},{passive:false});
 window.addEventListener('wheel',function(e){if(e.ctrlKey&&!stage.contains(e.target))e.preventDefault()},{passive:false});
+/* ---- Sleep timer: pause after N minutes or at the end of the current video ---- */
+var sleepEnd=0,sleepEndVid=false,sleepIv=0,sleepSel='0',SL_ICON=$('slBtn').innerHTML;
+function sleepPaint(){
+  var b=$('slBtn'),on=!!(sleepEnd||sleepEndVid),t='Off';
+  if(sleepEnd){var m=Math.max(1,Math.ceil((sleepEnd-Date.now())/60000));t=m+' min left'}
+  else if(sleepEndVid)t='At end of video';
+  $('slStat').textContent=t;
+  b.classList.toggle('on',on);
+  b.style.fontSize=on?'11px':'';
+  b.innerHTML=on?(sleepEnd?Math.max(1,Math.ceil((sleepEnd-Date.now())/60000))+'m':'End'):SL_ICON;
+  document.querySelectorAll('#slpop [data-m]').forEach(function(x){x.classList.toggle('on',x.dataset.m===sleepSel)});
+}
+function sleepClear(){clearInterval(sleepIv);sleepIv=0;sleepEnd=0;sleepEndVid=false;sleepSel='0'}
+function sleepFire(){
+  var was=!v.paused;sleepClear();v.pause();sleepPaint();
+  if(was)flash('Sleep timer<small>Paused</small>');
+}
+function sleepCheck(){if(sleepEnd&&Date.now()>=sleepEnd)sleepFire();else if(sleepEnd)sleepPaint()}
+function setSleep(m){
+  sleepClear();sleepSel=m;
+  if(m==='end')sleepEndVid=true;
+  else if(+m>0){sleepEnd=Date.now()+(+m)*60000;sleepIv=setInterval(sleepCheck,1000)}
+  else sleepSel='0';
+  sleepPaint();
+  flash('Sleep timer<small>'+(m==='end'?'End of video':+m>0?m+' min':'Off')+'</small>');
+}
+document.querySelectorAll('#slpop [data-m]').forEach(function(b){b.onclick=function(){setSleep(b.dataset.m)}});
+$('slBtn').onclick=function(){$('pop').classList.remove('show');$('subpop').classList.remove('show');$('slpop').classList.toggle('show')};
+v.addEventListener('timeupdate',sleepCheck);
+sleepPaint();
+/* ---- Swipe gestures on the video (one finger, not zoomed, controls not locked) ----
+   Sideways: fine scrub, SWIPE_MS of video per pixel, pauses while dragging and shows the time.
+   Up/down on the right half: volume. Up/down on the left half: brightness.
+   A swipe the height of the screen moves volume by 100% and brightness across its whole range.
+   Moves under 14 px are still taps. */
+var SWIPE_MS=30,scrub=false,noClickUntil=0,sw=null,seekBusy=false,seekWant=null;
+function swAxes(dx,dy){var land=$('app').classList.contains('land');return land?{x:dy,y:-dx}:{x:dx,y:dy}}
+/* live preview: one seek at a time, always jumping to the newest finger position (a new seek is only
+   started after the last one finished, otherwise phones never get to draw a frame while the finger moves) */
+function pumpSeek(){
+  if(seekBusy||seekWant===null)return;
+  var t=seekWant,to;seekWant=null;seekBusy=true;
+  var fin=function(){if(!seekBusy)return;seekBusy=false;v.removeEventListener('seeked',fin);clearTimeout(to);pumpSeek()};
+  to=setTimeout(fin,800);v.addEventListener('seeked',fin);
+  v.currentTime=t;
+}
+$('mid').addEventListener('touchstart',function(e){
+  sw=null;
+  if(e.touches.length!==1||zoom>1||lockOn||!$('dlg').hidden||!v.getAttribute('src'))return;
+  var t=e.touches[0],r=this.getBoundingClientRect(),land=$('app').classList.contains('land');
+  sw={x:t.clientX,y:t.clientY,mode:'',
+      half:((land?(t.clientY-r.top)/r.height:(t.clientX-r.left)/r.width)<0.5)?'L':'R',
+      ext:Math.max(160,stage.clientHeight)};
+},{passive:true});
+$('mid').addEventListener('touchmove',function(e){
+  if(!sw)return;
+  if(e.touches.length!==1||zoom>1){swEnd(true);return}
+  var t=e.touches[0],a=swAxes(t.clientX-sw.x,t.clientY-sw.y);
+  if(!sw.mode){
+    if(Math.max(Math.abs(a.x),Math.abs(a.y))<14)return;
+    if(Math.abs(a.x)>Math.abs(a.y)){
+      if(!isFinite(v.duration)||!v.duration){sw=null;return}
+      sw.mode='seek';sw.was=!v.paused;sw.base=v.currentTime;sw.target=sw.base;scrub=true;spin(false);
+      if(sw.was)v.pause();
+    }else{
+      sw.mode=sw.half==='R'?'vol':'bri';
+      sw.base=sw.mode==='vol'?+$('vol').value:+$('bri').value;
+    }
+  }
+  e.preventDefault();
+  if(sw.mode==='seek'){
+    sw.target=Math.max(0,Math.min(v.duration,sw.base+a.x*SWIPE_MS/1000));
+    flashTime(sw.target);
+    seekWant=sw.target;pumpSeek();
+  }else if(sw.mode==='vol'){
+    var r=$('vol'),x=Math.max(+r.min,Math.min(+r.max,Math.round((sw.base-a.y/sw.ext)*100)/100));
+    r.value=x;setVol(x);if(v.muted&&x>0)v.muted=false;
+    showVol(x);
+  }else{
+    var b=$('bri'),y=Math.max(+b.min,Math.min(+b.max,Math.round((sw.base-a.y/sw.ext)*100)/100));
+    b.value=y;v.style.filter='brightness('+y+')';
+    flash('Brightness<small>'+Math.round(y*100)+'%</small>');
+  }
+},{passive:false});
+function swEnd(cancel){
+  if(!sw)return;
+  var m=sw.mode;
+  if(m)noClickUntil=Date.now()+400;
+  if(m==='seek'){
+    seekWant=null;
+    if(!cancel)v.currentTime=sw.target;
+    scrub=false;
+    if(sw.was)v.play().catch(function(){});
+  }
+  sw=null;
+}
+$('mid').addEventListener('touchend',function(){swEnd(false)});
+$('mid').addEventListener('touchcancel',function(){swEnd(true)});
+/* mouse wheel over the video changes volume (Ctrl+wheel is still zoom) */
+stage.addEventListener('wheel',function(e){
+  if(e.ctrlKey||lockOn||!v.getAttribute('src')||e.target.closest('.pop'))return;
+  e.preventDefault();volBy(e.deltaY<0?0.05:-0.05);
+},{passive:false});
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&/^[-+=0]$/.test(e.key))e.preventDefault()});
 document.addEventListener('gesturestart',function(e){e.preventDefault()});
 document.addEventListener('gesturechange',function(e){e.preventDefault()});
@@ -600,77 +705,22 @@ function spin(on){$('spin').hidden=!on}
 v.addEventListener('error',function(){if(!v.getAttribute('src'))return;$('ph').classList.remove('hide');$('ph').lastChild.textContent='This file can\u2019t be played on this device.'});
 /* ---- Full screen on phones (hides status and navigation bars where the browser allows) ---- */
 function enterFS(){var d=document.documentElement;if(coarse&&!document.fullscreenElement&&d.requestFullscreen)d.requestFullscreen({navigationUI:'hide'}).catch(function(){})}
+/* ---- Auto landscape for wide videos (phones) ---- */
+function setLand(on){$('app').classList.toggle('land',on);syncWide();applyRot()}
+function unlockOri(){try{screen.orientation.unlock()}catch(e){}}
+function autoOrient(){
+  var playing=$('app').classList.contains('playing'),wide=v.videoWidth>v.videoHeight;
+  if(!(coarse&&playing&&wide)){unlockOri();setLand(false);return}
+  if(innerWidth>innerHeight){setLand(false);return}
+  var so=window.screen&&screen.orientation;
+  new Promise(function(ok,no){try{if(so&&so.lock)so.lock('landscape').then(ok,no);else no()}catch(e){no()}}).catch(function(){setLand(true)});
+}
+v.addEventListener('loadedmetadata',autoOrient);
 function vp(){var p=$('probe'),r=document.documentElement.style;r.setProperty('--fw',p.offsetWidth+'px');r.setProperty('--fh',p.offsetHeight+'px')}
-function syncWide(){$('app').classList.toggle('wide',coarse&&innerWidth>innerHeight)}
+function syncWide(){$('app').classList.toggle('wide',coarse&&($('app').classList.contains('land')||innerWidth>innerHeight))}
 vp();syncWide();
-window.addEventListener('resize',function(){vp();syncWide();applyRot()});
+window.addEventListener('resize',function(){vp();syncWide();applyRot();if($('app').classList.contains('playing'))autoOrient()});
 window.addEventListener('orientationchange',function(){setTimeout(function(){vp();syncWide()},300)});
-/* ---- Background playback and lock-screen controls ---- */
-function msMeta(){
-  if(!('mediaSession' in navigator)||idx<0||typeof MediaMetadata==='undefined')return;
-  try{navigator.mediaSession.metadata=new MediaMetadata({title:items[idx].name.replace(/\.[^.]+$/,''),artist:'AMPM Player',album:items[idx].folder||'AMPM Player',
-    artwork:[{src:'icons/icon-192.png',sizes:'192x192',type:'image/png'},{src:'icons/icon-512.png',sizes:'512x512',type:'image/png'}]})}catch(e){}
-}
-function msPos(){
-  if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState||!isFinite(v.duration)||!v.duration)return;
-  try{navigator.mediaSession.setPositionState({duration:v.duration,playbackRate:v.playbackRate||1,position:Math.min(v.currentTime,v.duration)})}catch(e){}
-}
-(function(){
-  var ms=navigator.mediaSession;
-  if(ms){
-    var set=function(a,f){try{ms.setActionHandler(a,f)}catch(e){}};
-    set('play',function(){v.play().catch(function(){})});
-    set('pause',function(){userPause()});
-    set('stop',function(){userPause()});
-    set('previoustrack',function(){$('prev').onclick()});
-    set('nexttrack',function(){$('next').onclick()});
-    set('seekbackward',function(d){v.currentTime=Math.max(0,v.currentTime-((d&&d.seekOffset)||10))});
-    set('seekforward',function(d){v.currentTime=Math.min(v.duration||1e9,v.currentTime+((d&&d.seekOffset)||10))});
-    set('seekto',function(d){if(d&&d.seekTime!=null){v.currentTime=d.seekTime;msPos()}});
-  }
-  v.addEventListener('play',function(){wantPlay=true;if(ms)ms.playbackState='playing';msPos()});
-  v.addEventListener('pause',function(){
-    if(ms)ms.playbackState='paused';
-    /* if the phone paused us (screen off, app switch) and the person didn't, start again */
-    if(wantPlay&&document.hidden)setTimeout(function(){if(wantPlay&&v.paused&&!v.ended&&document.hidden)v.play().catch(function(){})},150);
-  });
-  ['loadedmetadata','seeked','ratechange'].forEach(function(n){v.addEventListener(n,msPos)});
-  document.addEventListener('visibilitychange',function(){
-    if(actx&&actx.state==='suspended'&&wantPlay)actx.resume();
-    if(document.hidden&&wantPlay&&v.paused&&!v.ended)v.play().catch(function(){});
-  });
-})();
-/* ---- Advanced settings: double-tap skip seconds ---- */
-var skipS=10;
-try{var sv0=parseInt(localStorage.getItem('ampm-set:skip'),10);if(sv0>=1&&sv0<=600)skipS=sv0}catch(e){}
-function skip(d){
-  if(!v.duration&&!v.currentTime)return;
-  v.currentTime=Math.max(0,Math.min(v.duration||1e9,v.currentTime+d*skipS));
-  hud((d<0?'\u2212':'+')+skipS+' s');hudOff();
-}
-function setSkip(n){
-  n=Math.round(+n);if(!(n>=1))n=1;if(n>600)n=600;
-  skipS=n;$('skipIn').value=n;
-  try{localStorage.setItem('ampm-set:skip',String(n))}catch(e){}
-  var b=document.querySelectorAll('#setpop [data-s]');for(var i=0;i<b.length;i++)b[i].classList.toggle('on',+b[i].dataset.s===n);
-}
-$('setBtn').onclick=function(){$('pop').classList.remove('show');$('subpop').classList.remove('show');$('setpop').classList.toggle('show')};
-$('skipIn').onchange=function(){setSkip(this.value)};
-$('skipIn').onkeydown=function(e){if(e.key==='Enter')this.blur()};
-document.querySelectorAll('#setpop [data-s]').forEach(function(b){b.onclick=function(){setSkip(b.dataset.s)}});
-setSkip(skipS);
-var swipeMs=50;
-try{var sw0=parseInt(localStorage.getItem('ampm-set:swipe'),10);if(sw0>=5&&sw0<=1000)swipeMs=sw0}catch(e){}
-function setSwipe(n){
-  n=Math.round(+n);if(!(n>=5))n=5;if(n>1000)n=1000;
-  swipeMs=n;$('swIn').value=n;
-  try{localStorage.setItem('ampm-set:swipe',String(n))}catch(e){}
-  var b=document.querySelectorAll('#setpop [data-w]');for(var i=0;i<b.length;i++)b[i].classList.toggle('on',+b[i].dataset.w===n);
-}
-$('swIn').onchange=function(){setSwipe(this.value)};
-$('swIn').onkeydown=function(e){if(e.key==='Enter')this.blur()};
-document.querySelectorAll('#setpop [data-w]').forEach(function(b){b.onclick=function(){setSwipe(b.dataset.w)}});
-setSwipe(swipeMs);
 /* ---- Lock icon ---- */
 var LOCK_C='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 var LOCK_O='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
