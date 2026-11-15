@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#7c3aed"><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
 <title>AMPM Player</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -260,6 +260,18 @@
     transition: background 0.1s;
   }
   .mini-btn:hover { background: var(--line); }
+  .head-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .save-info { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .export-wrap { position: relative; }
+  .export-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 190px;
+    display: flex; flex-direction: column; gap: 2px; padding: 6px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+  .menu-item { text-align: left; padding: 7px 10px; border-radius: 7px; font-size: 13px; color: var(--ink); background: transparent; }
+  .menu-item:hover { background: var(--chip); }
+  .menu-check { display: flex; align-items: center; gap: 7px; padding: 7px 10px 4px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2px; }
   .mini-btn.primary { background: var(--accent); color: var(--acc-fg); }
   .mini-btn.primary:hover { background: #5b21b6; }
 
@@ -321,7 +333,7 @@
     width: 100%; border: 0; resize: none;
     background: transparent; color: var(--ink);
     padding: 14px 16px;
-    font: 500 13.5px/1.65 "Inter", sans-serif;
+    font: 500 var(--tx-fs, 13.5px)/var(--tx-lh, 1.65) "Inter", sans-serif;
     outline: none;
   }
   #transcriptText::placeholder { color: var(--muted); }
@@ -461,6 +473,54 @@
     background: var(--line); color: var(--ink); font-size: 12px; font-weight: 700; line-height: 1;
   }
   .tl-btn:hover { filter: brightness(.95); }
+  .tl-btn[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
+  .tl-select {
+    height: 24px; padding: 0 4px; border-radius: 7px; border: 0;
+    background: var(--line); color: var(--ink); font-size: 12px; font-weight: 700;
+  }
+  .editor-meta {
+    position: absolute; left: 14px; bottom: 10px; max-width: 58%; z-index: 4; pointer-events: none;
+    font-size: 11px; color: var(--muted); background: var(--chip); border: 1px solid var(--line);
+    border-radius: 8px; padding: 3px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .editor-meta[hidden] { display: none; }
+  .find-bar {
+    position: absolute; top: 8px; right: 14px; z-index: 12; width: min(430px, calc(100% - 28px));
+    display: flex; flex-direction: column; gap: 6px; padding: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+  .find-row { display: flex; align-items: center; gap: 5px; }
+  .find-row input {
+    flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--bg); color: var(--ink); padding: 5px 8px; font-size: 13px;
+  }
+  .find-row button {
+    height: 26px; min-width: 28px; padding: 0 8px; border-radius: 7px;
+    background: var(--chip); color: var(--ink); font-size: 12px; font-weight: 600;
+  }
+  .find-row button:hover { background: var(--line); }
+  .find-row button[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
+  .find-count { font-size: 11px; color: var(--muted); white-space: nowrap; min-width: 52px; text-align: right; }
+  .find-chips { font-size: 11px; color: var(--muted); }
+  .find-bar[hidden], .find-row[hidden] { display: none; }
+  .spk-phrases { font-size: 11px; padding: 3px 8px; border-radius: 7px; background: var(--chip); color: var(--ink); font-weight: 600; white-space: nowrap; }
+  .spk-phrases:hover { background: var(--line); }
+  .phrase-dlg {
+    border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(460px, 92vw);
+    background: var(--panel); color: var(--ink);
+  }
+  .phrase-dlg::backdrop { background: rgba(0, 0, 0, 0.4); }
+  .phrase-dlg h3 { margin: 0 0 6px; font-size: 15px; }
+  .phrase-dlg p { margin: 0 0 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .phrase-dlg textarea {
+    width: 100%; box-sizing: border-box; height: 210px; resize: vertical;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink);
+    padding: 8px; font: 13px/1.5 ui-monospace, Consolas, monospace;
+  }
+  .phrase-dlg .dlg-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .phrase-dlg .dlg-err { flex: 1; font-size: 11px; color: var(--muted); }
   .tl-info { margin-left: auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tl-wrap { position: relative; height: 72px; border-radius: 8px; background: var(--panel); overflow: hidden; }
   #tlCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; }
@@ -522,6 +582,21 @@
     .transcript-pane { min-height: 240px; flex: none; height: 50vh; }
     .stage { flex-shrink: 0; }
   }
+  /* ── Review mode, text size ── */
+  .mini-btn[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
+  .editor-wrap.reviewing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  #transcriptText:read-only { cursor: default; }
+  .font-wrap { position: relative; }
+  .font-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 240px;
+    display: flex; flex-direction: column; gap: 10px; padding: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+  .font-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .font-row > span { width: 56px; flex-shrink: 0; }
+  .font-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .font-row output { width: 40px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
 </style>
 
 <div class="app" id="app">
@@ -560,17 +635,39 @@
   <div class="right-col">
     <aside class="transcript-pane" aria-label="Transcript editor">
       <div class="transcript-head">
-        <strong>Transcript</strong>
+        <div class="head-title"><strong>Transcript</strong><span class="save-info" id="saveInfo" aria-live="polite"></span></div>
         <div class="head-tools">
           <label class="skip-box" aria-label="Skip seconds">
             Skip
             <input id="skipInput" type="number" min="1" max="60" step="1" value="2">
             s
           </label>
+          <label class="skip-box" aria-label="Rewind seconds on resume" title="When you press play after a pause, it first jumps back this many seconds (0 = off)">
+            Rewind
+            <input id="rewindInput" type="number" min="0" max="10" step="1" value="2">
+            s
+          </label>
+          <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): locks the text; N / Shift+N play the next / previous timestamped line, R replays it">Review</button>
           <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
+          <div class="font-wrap">
+            <button class="mini-btn" id="fontBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Text size and line spacing">Aa</button>
+            <div class="font-menu" id="fontMenu" hidden>
+              <label class="font-row"><span>Size</span><input id="fontSize" type="range" min="11" max="24" step="0.5"><output id="fontSizeVal"></output></label>
+              <label class="font-row"><span>Spacing</span><input id="lineHeight" type="range" min="1.3" max="2.4" step="0.05"><output id="lineHeightVal"></output></label>
+              <button type="button" class="mini-btn" id="fontReset">Reset</button>
+            </div>
+          </div>
+          <div class="export-wrap">
+            <button class="mini-btn" id="exportBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Export the transcript (Ctrl/⌘+S = .txt)">Export ▾</button>
+            <div class="export-menu" id="exportMenu" hidden>
+              <button type="button" class="menu-item" data-fmt="txt">Text (.txt)</button>
+              <button type="button" class="menu-item" data-fmt="doc">Word (.doc)</button>
+              <label class="menu-check"><input type="checkbox" id="exportStamps" checked> Include timestamps</label>
+            </div>
+          </div>
         </div>
       </div>
-      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (N / Shift + N = next / previous line, R = replay)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
         <div id="tsStatus"></div>
       </div>
@@ -607,6 +704,12 @@
               <input id="boostBar" type="range" min="0" max="300" step="5" value="100" aria-label="Volume boost">
               <output id="boostVal">100%</output>
             </label>
+            <select class="tl-select" id="speedSel" title="Playback speed (Alt+↑ / Alt+↓). Pitch stays natural." aria-label="Playback speed">
+              <option value="0.5">0.5×</option><option value="0.6">0.6×</option><option value="0.7">0.7×</option>
+              <option value="0.8">0.8×</option><option value="0.9">0.9×</option><option value="1" selected>1×</option>
+              <option value="1.1">1.1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option>
+            </select>
+            <button class="tl-btn" id="voiceBtn" type="button" aria-pressed="false" title="Clear voice: cuts low rumble, lifts speech, evens out quiet and loud parts">Voice</button>
             <span class="tl-sep" aria-hidden="true"></span>
             <span class="tl-title">Timeline</span>
             <button class="tl-btn" id="tlOut" type="button" title="Zoom out (-)" aria-label="Zoom out">−</button>
@@ -730,6 +833,7 @@
     if (index < 0 || index >= state.items.length) return;
     state.activeIndex = index;
     const item = state.items[index];
+    txOnLoad(item);
     video.src = item.url;
     videoTitleEl.textContent = item.name;
     emptyPlayerEl.hidden = true;
@@ -747,6 +851,20 @@
   // followed by a compressor that tames clipping at high boost.
   let audioCtx = null, gainNode = null;
 
+  let voiceNodes = null, voiceOn = false;
+  function applyVoice() {
+    if (!voiceNodes) return;
+    const { hp, pk, comp, makeup } = voiceNodes;
+    if (voiceOn) {   // cut rumble, lift 2-3 kHz speech, level quiet vs loud, then limit
+      hp.frequency.value = 110; pk.gain.value = 4;
+      comp.threshold.value = -28; comp.knee.value = 20; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.2;
+      makeup.gain.value = 1.5;
+    } else {         // original behaviour: comp only protects against clipping at high boost
+      hp.frequency.value = 10; pk.gain.value = 0;
+      comp.threshold.value = -8; comp.knee.value = 8; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.25;
+      makeup.gain.value = 1;
+    }
+  }
   function ensureAudio() {
     if (!audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -760,8 +878,16 @@
       comp.ratio.value = 8;
       comp.attack.value = 0.003;
       comp.release.value = 0.25;
-      src.connect(gainNode).connect(comp).connect(audioCtx.destination);
+      // "Voice" chain (transparent while Voice is off): high-pass, presence lift, makeup gain, final limiter.
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 10; hp.Q.value = 0.7;
+      const pk = audioCtx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 2800; pk.Q.value = 0.8; pk.gain.value = 0;
+      const makeup = audioCtx.createGain();
+      const lim = audioCtx.createDynamicsCompressor();
+      lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.1;
+      src.connect(hp).connect(pk).connect(gainNode).connect(comp).connect(makeup).connect(lim).connect(audioCtx.destination);
+      voiceNodes = { hp, pk, comp, makeup };
     }
+    applyVoice();
     if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
     gainNode.gain.value = state.boost / 100;
   }
@@ -791,7 +917,15 @@
     if (video.duration) seekBar.value = (video.currentTime / video.duration) * 1000;
   }
 
+  let reviewOn = false; // review mode: the editor is read-only
+  function reviewLocked() {
+    if (!reviewOn) return false;
+    tsStatusEl.textContent = 'Review mode — turn Review off to edit';
+    return true;
+  }
+
   function insertTimestamp() {
+    if (reviewLocked()) return;
     if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
     const stamp = `[${fmtTime(video.currentTime || 0)}] `;
     const s = transcriptTextEl.selectionStart;
@@ -920,6 +1054,7 @@
   });
 
   function insertSpeaker(slot) {
+    if (reviewLocked()) return;
     const name = speakers[slot];
     if (!name) { tsStatusEl.textContent = `Speaker ${slot + 1} is empty — add one first`; return; }
     const ta = transcriptTextEl;
@@ -969,6 +1104,623 @@
   }
 
   renderSpeakers();
+
+  // ── Speaker name autocomplete ─────────────────────────────
+  // Type the start of a name in CAPITALS followed by ":" at the start of a line
+  // (after an optional [m:ss]) and it completes to the full label already used in
+  // the transcript or saved in the speaker bar: "MA:" -> "DR. MARIANO:".
+  // Needs 2+ letters. A label that already exists exactly (e.g. "MA:" is itself used) is left alone.
+  // Ctrl+Z undoes the completion.
+  const SPK_LABEL_RE = /^\s*(?:\[[\d:]+\]\s*)?([A-ZÑ][A-ZÑ0-9 .'\-]{1,38}):(?=\s|$)/;
+  let spkAutoBusy = false;
+
+  function knownSpeakerNames(text, skipLine) {
+    const map = new Map(); // name -> { count, last }
+    const add = (name, line, weight) => {
+      const n = name.trim();
+      if (!n) return;
+      const e = map.get(n) || { count: 0, last: -1 };
+      e.count += weight; if (line > e.last) e.last = line;
+      map.set(n, e);
+    };
+    speakers.filter(Boolean).forEach(n => add(n, -1, 1));
+    text.split('\n').forEach((ln, i) => {
+      if (i === skipLine) return;
+      const m = ln.match(SPK_LABEL_RE);
+      if (m) add(m[1], i, 1);
+    });
+    return map;
+  }
+
+  function matchSpeaker(typed, names) {
+    const words = n => n.split(/[\s.\-]+/).filter(Boolean);
+    const norm = n => n.replace(/\./g, '');   // "DR." and "DR" compare the same
+    const T = norm(typed);
+    let best = null;
+    for (const [name, info] of names) {
+      let score = 0;
+      if (norm(name).startsWith(T)) score = 3;
+      else if (words(name).some(w => w.startsWith(T))) score = 2;
+      else if (words(name).map(w => w[0]).join('').startsWith(T)) score = 1;
+      if (!score) continue;
+      if (!best || score > best.score ||
+          (score === best.score && (info.count > best.info.count ||
+          (info.count === best.info.count && info.last > best.info.last)))) {
+        best = { name, score, info };
+      }
+    }
+    return best && best.name;
+  }
+
+  transcriptTextEl.addEventListener('input', e => {
+    if (spkAutoBusy || e.isComposing || e.inputType !== 'insertText' || e.data !== ':') return;
+    const ta = transcriptTextEl;
+    const v = ta.value;
+    const pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd || v[pos - 1] !== ':') return;
+    const lineStart = pos === 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1;
+    const m = v.slice(lineStart, pos).match(/^(\s*(?:\[[\d:]+\]\s*)?)([A-ZÑ][A-ZÑ .'\-]*[A-ZÑ.]|[A-ZÑ]{2}):$/);
+    if (!m) return;
+    const typed = m[2].trim();
+    if (typed.replace(/[^A-ZÑ]/g, '').length < 2) return;
+    // Text after the caret on this line must not already be part of a label (e.g. editing "MA:" inside "MA: hi" is fine, so only check the typed part)
+    const lineNo = v.slice(0, lineStart).split('\n').length - 1;
+    const names = knownSpeakerNames(v, lineNo);
+    if (names.has(typed)) return; // already a real label as typed
+    const full = matchSpeaker(typed, names);
+    if (!full || full === typed) return;
+    const from = lineStart + m[1].length;
+    spkAutoBusy = true;
+    ta.setSelectionRange(from, pos);
+    const text = full + ':';
+    if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+      ta.setRangeText(text, from, pos, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    spkAutoBusy = false;
+    updateLineHighlight();
+    tsStatusEl.textContent = `${typed}: → ${full}:`;
+  });
+
+  // ── Autosave (per media file, in this browser only) ───────
+  // The transcript is saved in localStorage under the media file's library key
+  // (name|size|lastModified), so adding the same file again brings its text back.
+  // Nothing is uploaded. An empty editor never deletes a saved copy.
+  const TX_PREFIX = 'ampm.tx.';
+  const saveInfoEl = document.getElementById('saveInfo');
+  let txKey = null;       // library key of the file the editor belongs to (null = unsaved draft)
+  let txName = '';
+  let txTimer = 0;
+  let pausedAt = null;    // playback position when paused (used by auto-rewind)
+
+  function txClock() { return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function txRead(key) {
+    try {
+      const r = JSON.parse(localStorage.getItem(TX_PREFIX + key) || 'null');
+      return r && typeof r.text === 'string' ? r : null;
+    } catch (_) { return null; }
+  }
+  function txSaveNow() {
+    clearTimeout(txTimer); txTimer = 0;
+    const text = transcriptTextEl.value;
+    if (!text) return;
+    try {
+      localStorage.setItem(TX_PREFIX + (txKey || 'draft'), JSON.stringify({ text, t: Date.now(), name: txName }));
+      saveInfoEl.textContent = 'Saved ' + txClock();
+    } catch (_) {
+      saveInfoEl.textContent = 'Not saved (browser storage full)';
+    }
+  }
+  function txSetText(text) {
+    const ta = transcriptTextEl;
+    ta.value = text;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.setSelectionRange(text.length, text.length);
+    ta.scrollTop = ta.scrollHeight;
+  }
+  // Called by loadItem before the new media is set.
+  function txOnLoad(item) {
+    pausedAt = null;
+    if (item.key === txKey) { txName = item.name; return; }
+    txSaveNow();                                   // flush the file we are leaving
+    const prevKey = txKey;
+    const hadText = !!transcriptTextEl.value;
+    const saved = txRead(item.key);
+    let note = '';
+    if (prevKey) {
+      // Switching files: the editor shows that file's own transcript.
+      txSetText(saved ? saved.text : '');
+      if (saved) note = 'Restored saved transcript';
+    } else if (!hadText) {
+      if (saved) { txSetText(saved.text); note = 'Restored saved transcript'; }
+    } else if (saved && saved.text !== transcriptTextEl.value) {
+      const when = new Date(saved.t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      if (confirm('A saved transcript for this file exists (saved ' + when + ').\n\nOK = load the saved one\nCancel = keep what is in the editor now (it will replace the saved one)')) {
+        txSetText(saved.text); note = 'Restored saved transcript';
+      }
+    }
+    txKey = item.key; txName = item.name;
+    txSaveNow();
+    if (!prevKey) { try { localStorage.removeItem(TX_PREFIX + 'draft'); } catch (_) {} }
+    if (note) tsStatusEl.textContent = note;
+  }
+  transcriptTextEl.addEventListener('input', () => {
+    clearTimeout(txTimer);
+    txTimer = setTimeout(txSaveNow, 700);
+  });
+  window.addEventListener('pagehide', txSaveNow);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) txSaveNow(); });
+  // On start: if the editor is empty, bring back the most recently saved transcript.
+  (function txRestoreLast() {
+    if (transcriptTextEl.value) return;
+    let best = null;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(TX_PREFIX)) continue;
+        const r = txRead(k.slice(TX_PREFIX.length));
+        if (r && (!best || r.t > best.r.t)) best = { k: k.slice(TX_PREFIX.length), r };
+      }
+    } catch (_) {}
+    if (!best) return;
+    txKey = best.k === 'draft' ? null : best.k;
+    txName = best.r.name || '';
+    txSetText(best.r.text);
+    saveInfoEl.textContent = 'Restored ' + new Date(best.r.t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    tsStatusEl.textContent = txName ? 'Restored last transcript: ' + txName : 'Restored last transcript';
+  })();
+
+  // ── Export (.txt / Word .doc) ─────────────────────────────
+  const exportBtn = document.getElementById('exportBtn');
+  const exportMenu = document.getElementById('exportMenu');
+  const exportStampsEl = document.getElementById('exportStamps');
+  try { exportStampsEl.checked = localStorage.getItem('ampm.exportStamps') !== '0'; } catch (_) {}
+  function closeExport() { exportMenu.hidden = true; exportBtn.setAttribute('aria-expanded', 'false'); }
+  exportBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    exportMenu.hidden = !exportMenu.hidden;
+    exportBtn.setAttribute('aria-expanded', String(!exportMenu.hidden));
+  });
+  document.addEventListener('click', e => { if (!exportMenu.hidden && !e.target.closest('.export-wrap')) closeExport(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !exportMenu.hidden) closeExport(); });
+  exportStampsEl.addEventListener('change', () => {
+    try { localStorage.setItem('ampm.exportStamps', exportStampsEl.checked ? '1' : '0'); } catch (_) {}
+  });
+  exportMenu.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', () => {
+    exportTranscript(b.dataset.fmt); closeExport();
+  }));
+
+  function exportTranscript(fmt) {
+    const raw = transcriptTextEl.value;
+    if (!raw.trim()) { tsStatusEl.textContent = 'Nothing to export yet'; return; }
+    const STAMP = /\[(?:\d+:)?\d{1,2}:\d{2}\]\s?/g;
+    let lines = raw.replace(/\r\n?/g, '\n').split('\n');
+    if (!exportStampsEl.checked) {
+      lines = lines.map(l => { const o = l.replace(STAMP, ''); return (o.trim() === '' && l.trim() !== '') ? null : o; })
+                   .filter(l => l !== null);
+    }
+    const item = state.items[state.activeIndex];
+    const base = (item ? item.name : (txName || 'transcript')).replace(/[\\/:*?"<>|]+/g, '_');
+    let blob, name;
+    if (fmt === 'doc') {
+      const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const labelRe = /^(\s*(?:\[[\d:]+\]\s*)?)([A-ZÑ][A-ZÑ0-9 .'\-]{1,38}:)(?=\s|$)/;
+      const paras = lines.map(l => {
+        if (!l.trim()) return '<p>&nbsp;</p>';
+        const m = l.match(labelRe);
+        const stampWrap = h => h.replace(/(\[[\d:]+\])/, '<span class="t">$1</span>');
+        return m
+          ? '<p>' + stampWrap(esc(m[1])) + '<b>' + esc(m[2]) + '</b>' + esc(l.slice(m[0].length)) + '</p>'
+          : '<p>' + stampWrap(esc(l)) + '</p>';
+      }).join('\n');
+      const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>' + esc(base) + '</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt}p{margin:0 0 8pt}.t{color:#666666}</style></head><body>\n' + paras + '\n</body></html>';
+      blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+      name = base + '.doc';
+    } else {
+      blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+      name = base + '.txt';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.hidden = true;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    tsStatusEl.textContent = 'Exported ' + name;
+  }
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault(); exportTranscript('txt');
+    }
+  });
+
+  // ── Auto-rewind on resume ─────────────────────────────────
+  // After a pause, pressing play first jumps back N seconds so the last words are heard again.
+  // Skipped when the position was moved while paused (seek, click on a timestamp, loop wrap).
+  const rewindInput = document.getElementById('rewindInput');
+  function getRewind() {
+    const n = Number(rewindInput.value);
+    return Number.isFinite(n) ? Math.max(0, Math.min(10, Math.round(n))) : 0;
+  }
+  try { const r = localStorage.getItem('ampm.rewind'); if (r !== null) rewindInput.value = r; } catch (_) {}
+  rewindInput.value = String(getRewind());
+  rewindInput.addEventListener('change', () => {
+    rewindInput.value = String(getRewind());
+    try { localStorage.setItem('ampm.rewind', rewindInput.value); } catch (_) {}
+  });
+  video.addEventListener('pause', () => { pausedAt = video.ended ? null : video.currentTime; });
+  video.addEventListener('play', () => {
+    const sec = getRewind();
+    const p = pausedAt; pausedAt = null;
+    if (p == null || !sec) return;
+    if (Math.abs(video.currentTime - p) > 1.5) return;
+    video.currentTime = Math.max(0, p - sec);
+  });
+
+  // ── Playback speed (pitch stays natural) ──────────────────
+  const speedSel = document.getElementById('speedSel');
+  const SPEEDS = Array.from(speedSel.options).map(o => Number(o.value));
+  function setSpeed(r, announce) {
+    let best = SPEEDS[0];
+    SPEEDS.forEach(x => { if (Math.abs(x - r) < Math.abs(best - r)) best = x; });
+    video.defaultPlaybackRate = best;
+    video.playbackRate = best;
+    try { video.preservesPitch = true; video.webkitPreservesPitch = true; } catch (_) {}
+    speedSel.value = String(best);
+    try { localStorage.setItem('ampm.speed', String(best)); } catch (_) {}
+    if (announce) tsStatusEl.textContent = 'Speed ' + best + '×';
+  }
+  function stepSpeed(dir) {
+    const i = SPEEDS.indexOf(Number(speedSel.value));
+    const j = Math.max(0, Math.min(SPEEDS.length - 1, (i < 0 ? SPEEDS.indexOf(1) : i) + dir));
+    setSpeed(SPEEDS[j], true);
+  }
+  speedSel.addEventListener('change', () => setSpeed(Number(speedSel.value), false));
+  video.addEventListener('loadedmetadata', () => setSpeed(Number(speedSel.value), false)); // new src resets the rate
+  try { const sp = localStorage.getItem('ampm.speed'); if (sp) setSpeed(Number(sp), false); } catch (_) {}
+  document.addEventListener('keydown', e => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      stepSpeed(e.key === 'ArrowUp' ? 1 : -1);
+    }
+  });
+
+  // ── Voice clean-up (Web Audio filter chain) ───────────────
+  const voiceBtn = document.getElementById('voiceBtn');
+  function setVoice(on, announce) {
+    voiceOn = !!on;
+    voiceBtn.setAttribute('aria-pressed', String(voiceOn));
+    try { localStorage.setItem('ampm.voice', voiceOn ? '1' : '0'); } catch (_) {}
+    if (voiceOn || voiceNodes) { ensureAudio(); applyVoice(); }
+    if (announce) tsStatusEl.textContent = voiceOn ? 'Clear voice on' : 'Clear voice off';
+  }
+  voiceBtn.addEventListener('click', () => setVoice(!voiceOn, true));
+  try { if (localStorage.getItem('ampm.voice') === '1') { voiceOn = true; voiceBtn.setAttribute('aria-pressed', 'true'); } } catch (_) {}
+  video.addEventListener('play', () => { if (voiceOn) ensureAudio(); }); // the audio graph needs a play gesture first
+
+  // ── Quick markers: F2 [inaudible], F4 [crosstalk] ─────────
+  // "[inaudible 1:56:48]" is not a timestamp (no bracket right around the time), so the timeline ignores it.
+  function insertAtCaret(text) {
+    const ta = transcriptTextEl;
+    ta.focus();
+    if (!document.execCommand || !document.execCommand('insertText', false, text)) {
+      ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+  function insertMarker(word) {
+    if (reviewLocked()) return;
+    const ta = transcriptTextEl;
+    const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
+    const hasMedia = !!state.items[state.activeIndex];
+    const body = '[' + word + (hasMedia ? ' ' + fmtTime(video.currentTime || 0) : '') + ']';
+    const pre = a > 0 && !/\s/.test(v[a - 1]) ? ' ' : '';
+    const post = b < v.length && /\s/.test(v[b]) ? '' : ' ';
+    insertAtCaret(pre + body + post);
+    updateLineHighlight();
+    tsStatusEl.textContent = 'Marked ' + body;
+  }
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (e.key === 'F2') { e.preventDefault(); insertMarker('inaudible'); }
+    else if (e.key === 'F4') { e.preventDefault(); insertMarker('crosstalk'); }
+  });
+
+  // ── Find & replace (Ctrl+F / Ctrl+H) ──────────────────────
+  const findBar = document.createElement('div');
+  findBar.className = 'find-bar';
+  findBar.hidden = true;
+  findBar.innerHTML =
+    '<div class="find-row">' +
+      '<input id="findInput" placeholder="Find" aria-label="Find in transcript" spellcheck="false" autocomplete="off">' +
+      '<span class="find-count" id="findCount"></span>' +
+      '<button type="button" id="findPrev" title="Previous (Shift+Enter)" aria-label="Previous match">↑</button>' +
+      '<button type="button" id="findNext" title="Next (Enter)" aria-label="Next match">↓</button>' +
+      '<button type="button" id="findCase" aria-pressed="false" title="Match case">Aa</button>' +
+      '<button type="button" id="findToggle" title="Show replace (Ctrl+H)" aria-label="Show replace">⇄</button>' +
+      '<button type="button" id="findClose" title="Close (Esc)" aria-label="Close find">✕</button>' +
+    '</div>' +
+    '<div class="find-row" id="replaceRow" hidden>' +
+      '<input id="replaceInput" placeholder="Replace with" aria-label="Replace with" spellcheck="false" autocomplete="off">' +
+      '<button type="button" id="repOne">Replace</button>' +
+      '<button type="button" id="repAll">All</button>' +
+    '</div>' +
+    '<div class="find-row find-chips">Jump to: ' +
+      '<button type="button" data-q="[inaudible">inaudible</button>' +
+      '<button type="button" data-q="[crosstalk">crosstalk</button>' +
+    '</div>';
+  editorWrap.appendChild(findBar);
+  const findInput = document.getElementById('findInput');
+  const replaceInput = document.getElementById('replaceInput');
+  const replaceRow = document.getElementById('replaceRow');
+  const findCountEl = document.getElementById('findCount');
+  const findCaseBtn = document.getElementById('findCase');
+  let findTimer = 0;
+
+  function findRegex() {
+    const q = findInput.value;
+    if (!q) return null;
+    return new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), findCaseBtn.getAttribute('aria-pressed') === 'true' ? 'g' : 'gi');
+  }
+  function findAll() {
+    const re = findRegex();
+    if (!re) return [];
+    const out = [];
+    const v = transcriptTextEl.value;
+    let m;
+    while ((m = re.exec(v)) !== null) { out.push({ start: m.index, end: m.index + m[0].length }); if (m[0].length === 0) re.lastIndex++; }
+    return out;
+  }
+  function findUpdateCount() {
+    const all = findAll();
+    if (!findInput.value) { findCountEl.textContent = ''; return all; }
+    if (!all.length) { findCountEl.textContent = 'No results'; return all; }
+    const ta = transcriptTextEl;
+    const i = all.findIndex(m => m.start === ta.selectionStart && m.end === ta.selectionEnd);
+    findCountEl.textContent = (i >= 0 ? (i + 1) + ' / ' : '') + all.length;
+    return all;
+  }
+  // If the match sits inside a marker like "[inaudible 1:56:48]", move the audio there too.
+  function seekToMarkerAt(idx) {
+    if (!state.items[state.activeIndex]) return;
+    const v = transcriptTextEl.value;
+    const ls = idx === 0 ? 0 : v.lastIndexOf('\n', idx - 1) + 1;
+    let le = v.indexOf('\n', idx); if (le < 0) le = v.length;
+    const line = v.slice(ls, le);
+    const re = /\[([^\]\d]*?)\s+((?:\d+:)?\d{1,2}:\d{2})\]/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      const a = ls + m.index, b = a + m[0].length;
+      if (idx >= a && idx < b) {
+        const parts = m[2].split(':').map(Number);
+        const t = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
+        if (Number.isFinite(t)) video.currentTime = Math.min(t, video.duration || t);
+        return;
+      }
+    }
+  }
+  function findGoto(m) {
+    const ta = transcriptTextEl;
+    suppressSyncUntil = performance.now() + 4000;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(m.start, m.end);
+    ta.scrollTop = Math.max(0, offsetOfChar(m.start) - ta.clientHeight / 3);
+    updateLineHighlight();
+    findInput.focus();
+    seekToMarkerAt(m.start);
+    findUpdateCount();
+  }
+  function findStep(dir, fromStart) {
+    const all = findAll();
+    if (!all.length) { findUpdateCount(); return; }
+    const ta = transcriptTextEl;
+    let m;
+    if (dir > 0) {
+      const from = fromStart ? ta.selectionStart : ta.selectionEnd;
+      m = all.find(x => x.start >= from) || all[0];
+    } else {
+      const from = ta.selectionStart;
+      for (let i = all.length - 1; i >= 0; i--) if (all[i].start < from) { m = all[i]; break; }
+      m = m || all[all.length - 1];
+    }
+    findGoto(m);
+  }
+  function openFind(withReplace) {
+    const ta = transcriptTextEl;
+    const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    if (sel && sel.length < 80 && !sel.includes('\n')) findInput.value = sel;
+    findBar.hidden = false;
+    if (withReplace) replaceRow.hidden = false;
+    findInput.focus(); findInput.select();
+    findUpdateCount();
+  }
+  function closeFind() {
+    findBar.hidden = true;
+    transcriptTextEl.focus({ preventScroll: true });
+  }
+  function replaceOne() {
+    if (reviewLocked()) return;
+    const ta = transcriptTextEl;
+    const re = findRegex();
+    if (!re) return;
+    const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    const isMatch = sel && new RegExp('^(?:' + re.source + ')$', re.flags.replace('g', '')).test(sel);
+    if (isMatch) {
+      ta.focus({ preventScroll: true });
+      const keep = ta.scrollTop;
+      insertAtCaret(replaceInput.value);
+      ta.scrollTop = keep;
+    }
+    findStep(1, true);
+  }
+  function replaceAll() {
+    if (reviewLocked()) return;
+    const re = findRegex();
+    const ta = transcriptTextEl;
+    if (!re) return;
+    const count = findAll().length;
+    if (!count) { findUpdateCount(); return; }
+    const rep = replaceInput.value;
+    const next = ta.value.replace(re, () => rep);
+    const keepTop = ta.scrollTop, keepPos = ta.selectionStart;
+    ta.focus({ preventScroll: true });
+    ta.select();
+    if (!document.execCommand || !document.execCommand('insertText', false, next)) {
+      ta.value = next;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    ta.setSelectionRange(Math.min(keepPos, next.length), Math.min(keepPos, next.length));
+    ta.scrollTop = keepTop;
+    findInput.focus();
+    tsStatusEl.textContent = 'Replaced ' + count + (count === 1 ? ' match' : ' matches') + ' (Ctrl+Z undoes all)';
+    findUpdateCount();
+  }
+
+  findInput.addEventListener('input', () => { findStep(1, true); });
+  findInput.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.stopPropagation(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+    if (!(e.ctrlKey || e.metaKey)) e.stopPropagation();   // typing here must not trigger playback shortcuts ([ and ] would skip)
+  });
+  replaceInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); replaceOne(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+    if (!(e.ctrlKey || e.metaKey)) e.stopPropagation();
+  });
+  document.getElementById('findNext').addEventListener('click', () => findStep(1));
+  document.getElementById('findPrev').addEventListener('click', () => findStep(-1));
+  document.getElementById('findClose').addEventListener('click', closeFind);
+  document.getElementById('findToggle').addEventListener('click', () => { replaceRow.hidden = !replaceRow.hidden; });
+  findCaseBtn.addEventListener('click', () => {
+    findCaseBtn.setAttribute('aria-pressed', String(findCaseBtn.getAttribute('aria-pressed') !== 'true'));
+    findStep(1, true);
+  });
+  document.getElementById('repOne').addEventListener('click', replaceOne);
+  document.getElementById('repAll').addEventListener('click', replaceAll);
+  findBar.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+    findInput.value = b.dataset.q; findStep(1);
+  }));
+  transcriptTextEl.addEventListener('input', () => {
+    if (findBar.hidden) return;
+    clearTimeout(findTimer); findTimer = setTimeout(findUpdateCount, 200);
+  });
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'f') { e.preventDefault(); openFind(false); }
+    else if (k === 'h') { e.preventDefault(); openFind(true); }
+  });
+
+  // ── Word count and typing progress (bottom-left of the editor) ──
+  const editorMeta = document.createElement('div');
+  editorMeta.className = 'editor-meta';
+  editorMeta.hidden = true;
+  editorWrap.parentNode.appendChild(editorMeta);
+  let metaTimer = 0;
+  function updateMeta() {
+    const v = transcriptTextEl.value;
+    if (!v.trim()) { editorMeta.hidden = true; return; }
+    const words = v.split(/\s+/).filter(w => w && !/^\[[^\]]*\]$/.test(w)).length;
+    let txt = words.toLocaleString() + (words === 1 ? ' word' : ' words');
+    const dur = video.duration;
+    if (state.items[state.activeIndex] && Number.isFinite(dur) && dur > 0) {
+      const st = parseStamps(v);
+      if (st.length) {
+        const t = Math.max(...st.map(x => x.time));
+        txt += ' · typed to ' + fmtTime(t) + ' of ' + fmtTime(dur) + ' (' + Math.min(100, Math.round(t / dur * 100)) + '%)';
+      }
+    }
+    editorMeta.textContent = txt;
+    editorMeta.hidden = false;
+  }
+  function scheduleMeta() { clearTimeout(metaTimer); metaTimer = setTimeout(updateMeta, 250); }
+  transcriptTextEl.addEventListener('input', scheduleMeta);
+  ['loadedmetadata', 'durationchange', 'emptied'].forEach(n => video.addEventListener(n, scheduleMeta));
+  updateMeta();
+
+  // ── Phrase shortcuts: type a short form + space/punctuation and it expands ──
+  // List is "short = full text", one per line, saved in localStorage ('ampm.phrases').
+  const PHRASE_KEY = 'ampm.phrases';
+  let phraseMap = new Map();
+  let phraseBusy = false;
+  function parsePhrases(raw) {
+    const map = new Map(), bad = [];
+    String(raw || '').split('\n').forEach((line, i) => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return;
+      const eq = t.indexOf('=');
+      const key = eq > 0 ? t.slice(0, eq).trim().toLowerCase() : '';
+      const val = eq > 0 ? t.slice(eq + 1).trim() : '';
+      if (!/^[a-z0-9]{1,12}$/.test(key) || !val) { bad.push(i + 1); return; }
+      if (map.size < 300) map.set(key, val);
+    });
+    return { map, bad };
+  }
+  function loadPhrases() {
+    let raw = '';
+    try { raw = localStorage.getItem(PHRASE_KEY) || ''; } catch (_) {}
+    phraseMap = parsePhrases(raw).map;
+    return raw;
+  }
+  loadPhrases();
+
+  transcriptTextEl.addEventListener('input', e => {
+    if (phraseBusy || !phraseMap.size || e.isComposing || e.inputType !== 'insertText' || !/^[ .,;?!]$/.test(e.data || '')) return;
+    const ta = transcriptTextEl;
+    const v = ta.value, pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd || v[pos - 1] !== e.data) return;
+    const m = v.slice(0, pos - 1).match(/(^|[\s(["'])([A-Za-z0-9]{1,12})$/);
+    if (!m) return;
+    let exp = phraseMap.get(m[2].toLowerCase());
+    if (!exp) return;
+    if (/^[A-Z][a-z0-9]*$/.test(m[2]) && /^[a-z]/.test(exp)) exp = exp[0].toUpperCase() + exp.slice(1);
+    const start = pos - 1 - m[2].length;
+    phraseBusy = true;
+    ta.setSelectionRange(start, pos - 1);
+    if (!document.execCommand || !document.execCommand('insertText', false, exp)) {
+      ta.setRangeText(exp, start, pos - 1, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    phraseBusy = false;
+    const after = start + exp.length + 1;      // past the space / punctuation the user typed
+    ta.setSelectionRange(after, after);
+    updateLineHighlight();
+  });
+
+  const phraseDlg = document.createElement('dialog');
+  phraseDlg.className = 'phrase-dlg';
+  phraseDlg.innerHTML =
+    '<h3>Phrase shortcuts</h3>' +
+    '<p>One per line: <b>short = full text</b>. Type the short form and then a space or punctuation, and it expands. ' +
+    'Short forms are letters/numbers (up to 12). Capitalised short forms give a capital letter.</p>' +
+    '<textarea id="phraseText" spellcheck="false" placeholder="tnx = Thank you.&#10;gm = Good morning.&#10;mtg = meeting&#10;# lines starting with # are ignored"></textarea>' +
+    '<div class="dlg-actions"><span class="dlg-err" id="phraseErr"></span>' +
+    '<button type="button" class="mini-btn" id="phraseCancel">Cancel</button>' +
+    '<button type="button" class="mini-btn primary" id="phraseSave">Save</button></div>';
+  document.body.appendChild(phraseDlg);
+  const phraseText = phraseDlg.querySelector('#phraseText');
+  const phraseErr = phraseDlg.querySelector('#phraseErr');
+  const phraseBtn = document.createElement('button');
+  phraseBtn.type = 'button';
+  phraseBtn.className = 'spk-phrases';
+  phraseBtn.textContent = '⚡ Phrases';
+  phraseBtn.title = 'Phrase shortcuts (type a short form and it expands)';
+  speakerBar.insertBefore(phraseBtn, spkHint);
+  phraseBtn.addEventListener('click', () => {
+    phraseText.value = loadPhrases();
+    phraseErr.textContent = '';
+    phraseDlg.showModal();
+    phraseText.focus();
+  });
+  phraseDlg.querySelector('#phraseCancel').addEventListener('click', () => phraseDlg.close());
+  phraseDlg.querySelector('#phraseSave').addEventListener('click', () => {
+    const { map, bad } = parsePhrases(phraseText.value);
+    if (bad.length) { phraseErr.textContent = 'Check line ' + bad.slice(0, 4).join(', ') + ' (use: short = full text)'; return; }
+    try { localStorage.setItem(PHRASE_KEY, phraseText.value); } catch (_) {}
+    phraseMap = map;
+    phraseDlg.close();
+    tsStatusEl.textContent = map.size + (map.size === 1 ? ' phrase shortcut saved' : ' phrase shortcuts saved');
+  });
+  phraseDlg.addEventListener('keydown', e => e.stopPropagation());
 
   // ── Transcript follows playback ───────────────────────────
   // Finds the timestamped line ([m:ss] or [h:mm:ss]) matching the current
@@ -1580,6 +2332,7 @@
   }
 
   function pauseAndEdit() {
+    if (reviewOn) setReview(false, false);
     if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
     video.pause();
     transcriptTextEl.focus();
@@ -1658,6 +2411,191 @@
     else if (e.key === '+' || e.key === '=') tlZoomBy(1 / 1.6);
     else if (e.key === '-' || e.key === '_') tlZoomBy(1.6);
   });
+
+  // ── Review mode (Alt+R): read-only, step through the transcript against the audio ──
+  // N / Shift+N play the next / previous timestamped line (up to REVIEW_MAX s, or until the next
+  // timestamp), R replays the current one. Playback then pauses by itself.
+  const reviewBtn = document.getElementById('reviewBtn');
+  const REVIEW_MAX = 12;
+  let reviewFresh = true, reviewStart = 0, reviewStop = null, reviewRaf = 0;
+
+  function reviewCancel() {
+    cancelAnimationFrame(reviewRaf);
+    reviewStop = null;
+  }
+  function setReview(on, announce) {
+    reviewOn = !!on;
+    transcriptTextEl.readOnly = reviewOn;
+    editorWrap.classList.toggle('reviewing', reviewOn);
+    reviewBtn.setAttribute('aria-pressed', String(reviewOn));
+    reviewFresh = true;
+    reviewCancel();
+    if (reviewOn) transcriptTextEl.blur(); // so Space / arrows keep controlling playback
+    if (announce) tsStatusEl.textContent = reviewOn
+      ? 'Review: N next line · Shift+N previous · R replay'
+      : 'Review off — editing unlocked';
+  }
+  function reviewTick() {
+    if (reviewStop == null) return;
+    const t = video.currentTime;
+    if (t > reviewStop + 1 || t < reviewStart - 0.5) { reviewCancel(); return; } // the user moved elsewhere
+    if (t >= reviewStop) { video.pause(); reviewCancel(); return; }
+    reviewRaf = requestAnimationFrame(reviewTick);
+  }
+  // dir: 1 next, -1 previous, 0 replay the current line
+  function reviewStep(dir) {
+    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
+    const ta = transcriptTextEl;
+    const stamps = parseStamps(ta.value);
+    if (!stamps.length) { tsStatusEl.textContent = 'No timestamps to review'; return; }
+    const caretLine = ta.value.slice(0, ta.selectionStart || 0).split('\n').length - 1;
+    const atOrAfter = () => { const k = stamps.findIndex(x => x.line >= caretLine); return k < 0 ? stamps.length - 1 : k; };
+    let i;
+    if (dir === 0 || reviewFresh) {
+      const cur = stamps.findIndex(x => x.line === caretLine);
+      i = cur >= 0 ? cur : atOrAfter();
+    } else {
+      const cur = stamps.findIndex(x => x.line === caretLine);
+      if (cur >= 0) i = cur + dir;
+      else if (dir > 0) i = stamps.findIndex(x => x.line > caretLine);
+      else { i = -1; stamps.forEach((x, k) => { if (x.line < caretLine) i = k; }); }
+    }
+    if (i < 0) { tsStatusEl.textContent = 'Start of transcript'; return; }
+    if (i >= stamps.length) { tsStatusEl.textContent = 'End of transcript'; return; }
+    reviewFresh = false;
+    const cur = stamps[i], next = stamps[i + 1];
+    let stop = cur.time + REVIEW_MAX;
+    if (next && next.time > cur.time) stop = Math.min(stop, next.time);
+    if (video.duration) stop = Math.min(stop, video.duration);
+    ta.setSelectionRange(cur.end, cur.end);
+    ta.scrollTo({ top: Math.max(0, offsetOfChar(cur.start) - ta.clientHeight * 0.3), behavior: 'auto' });
+    updateLineHighlight();
+    reviewCancel();
+    pausedAt = null; // no auto-rewind: the clip should start exactly at the timestamp
+    video.currentTime = cur.time;
+    reviewStart = cur.time; reviewStop = stop;
+    video.play().catch(() => {});
+    reviewRaf = requestAnimationFrame(reviewTick);
+    tsStatusEl.textContent = `Review ${i + 1} / ${stamps.length}  [${fmtTime(cur.time)}]`;
+  }
+  reviewBtn.addEventListener('click', () => setReview(!reviewOn, true));
+  video.addEventListener('pause', reviewCancel);
+  // Capture phase: these keys must win over the global handler, and N / R must work even
+  // while the (read-only) editor has focus.
+  document.addEventListener('keydown', e => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyR') {
+      e.preventDefault(); e.stopImmediatePropagation(); setReview(!reviewOn, true); return;
+    }
+    if (!reviewOn || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t.tagName === 'INPUT' || (t.tagName === 'TEXTAREA' && t !== transcriptTextEl)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'n') { e.preventDefault(); e.stopImmediatePropagation(); reviewStep(e.shiftKey ? -1 : 1); }
+    else if (k === 'r' && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); reviewStep(0); }
+  }, true);
+
+  // ── Text size and line spacing (Aa button) ────────────────
+  const FONT_DEF = { fs: 13.5, lh: 1.65 };
+  const fontBtn = document.getElementById('fontBtn');
+  const fontMenu = document.getElementById('fontMenu');
+  const fontSizeEl = document.getElementById('fontSize');
+  const lineHeightEl = document.getElementById('lineHeight');
+  const fontSizeVal = document.getElementById('fontSizeVal');
+  const lineHeightVal = document.getElementById('lineHeightVal');
+  const fontPrefs = { fs: FONT_DEF.fs, lh: FONT_DEF.lh };
+  const clampNum = (n, lo, hi, d) => Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d;
+  try {
+    const f = JSON.parse(localStorage.getItem('ampm.font') || 'null');
+    if (f) {
+      fontPrefs.fs = clampNum(Number(f.fs), 11, 24, FONT_DEF.fs);
+      fontPrefs.lh = clampNum(Number(f.lh), 1.3, 2.4, FONT_DEF.lh);
+    }
+  } catch (_) {}
+  function applyFont(save) {
+    const ta = transcriptTextEl;
+    // keep the caret's line where it is on screen while the metrics change
+    const rel = offsetOfChar(ta.selectionStart || 0) - ta.scrollTop;
+    ta.style.setProperty('--tx-fs', fontPrefs.fs + 'px');
+    ta.style.setProperty('--tx-lh', String(fontPrefs.lh));
+    fontSizeEl.value = String(fontPrefs.fs);
+    lineHeightEl.value = String(fontPrefs.lh);
+    fontSizeVal.textContent = fontPrefs.fs + ' px';
+    lineHeightVal.textContent = fontPrefs.lh.toFixed(2);
+    ta.scrollTop = Math.max(0, offsetOfChar(ta.selectionStart || 0) - rel);
+    updateLineHighlight();
+    if (save) { try { localStorage.setItem('ampm.font', JSON.stringify(fontPrefs)); } catch (_) {} }
+  }
+  fontSizeEl.addEventListener('input', () => { fontPrefs.fs = clampNum(Number(fontSizeEl.value), 11, 24, FONT_DEF.fs); applyFont(true); });
+  lineHeightEl.addEventListener('input', () => { fontPrefs.lh = clampNum(Number(lineHeightEl.value), 1.3, 2.4, FONT_DEF.lh); applyFont(true); });
+  document.getElementById('fontReset').addEventListener('click', () => { fontPrefs.fs = FONT_DEF.fs; fontPrefs.lh = FONT_DEF.lh; applyFont(true); });
+  function closeFont() { fontMenu.hidden = true; fontBtn.setAttribute('aria-expanded', 'false'); }
+  fontBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    fontMenu.hidden = !fontMenu.hidden;
+    fontBtn.setAttribute('aria-expanded', String(!fontMenu.hidden));
+  });
+  document.addEventListener('click', e => { if (!fontMenu.hidden && !e.target.closest('.font-wrap')) closeFont(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fontMenu.hidden) closeFont(); });
+  applyFont(false);
+
+  // ── Media keys / headset buttons (Media Session API) ──────
+  // Play/pause, seek back/forward (by the Skip value), and previous/next track = previous/next
+  // transcript timestamp. Needs no UI; browsers without the API simply skip it.
+  function stampStep(dir) {
+    const t = video.currentTime || 0;
+    let target = null;
+    for (const x of parseStamps(transcriptTextEl.value)) {
+      if (dir > 0 && x.time > t + 0.5 && (target === null || x.time < target)) target = x.time;
+      if (dir < 0 && x.time < t - 1.5 && (target === null || x.time > target)) target = x.time;
+    }
+    return target;
+  }
+  if ('mediaSession' in navigator) {
+    const ms = navigator.mediaSession;
+    const handle = (action, fn) => { try { ms.setActionHandler(action, fn); } catch (_) {} };
+    const loaded = () => !!state.items[state.activeIndex];
+    handle('play', () => { if (loaded()) video.play().catch(() => {}); });
+    handle('pause', () => video.pause());
+    handle('seekbackward', d => { if (loaded()) seekBy(-((d && d.seekOffset) || normalizeSkip())); });
+    handle('seekforward', d => { if (loaded()) seekBy((d && d.seekOffset) || normalizeSkip()); });
+    handle('seekto', d => {
+      if (!loaded() || !d || !Number.isFinite(d.seekTime)) return;
+      video.currentTime = d.seekTime;
+    });
+    handle('previoustrack', () => {
+      if (!loaded()) return;
+      const t = stampStep(-1);
+      if (t !== null) video.currentTime = t; else seekBy(-normalizeSkip());
+    });
+    handle('nexttrack', () => {
+      if (!loaded()) return;
+      const t = stampStep(1);
+      if (t !== null) video.currentTime = t; else seekBy(normalizeSkip());
+    });
+    const msMeta = () => {
+      try {
+        ms.metadata = new MediaMetadata({
+          title: videoTitleEl.textContent || 'Transcriptor',
+          artist: 'Transcriptor',
+          artwork: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
+        });
+      } catch (_) {}
+    };
+    const msState = () => {
+      try {
+        ms.playbackState = video.paused ? 'paused' : 'playing';
+        if (Number.isFinite(video.duration) && video.duration > 0) {
+          ms.setPositionState({
+            duration: video.duration,
+            position: Math.max(0, Math.min(video.currentTime || 0, video.duration)),
+            playbackRate: video.playbackRate || 1
+          });
+        }
+      } catch (_) {}
+    };
+    video.addEventListener('loadedmetadata', () => { msMeta(); msState(); });
+    ['play', 'pause', 'seeked', 'ratechange'].forEach(ev => video.addEventListener(ev, msState));
+  }
 
   // ── Init ──────────────────────────────────────────────────
   normalizeSkip();
