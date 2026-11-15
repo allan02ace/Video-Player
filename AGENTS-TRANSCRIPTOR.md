@@ -8,6 +8,9 @@ Guidance for AI coding agents working on **`Transcriptor.html`**. The phone-firs
 
 - File: `Transcriptor.html` (HTML + CSS + vanilla JS, all inline)
 - It is opened from the video player's ↗ button (`#newBtn` in `index.html`) and is part of the same installed PWA: its head links `manifest.webmanifest`, `theme-color` and the icons (`icon.svg`, `icons/icon-192.png`, `icons/apple-touch-icon.png`, relative paths), and it must stay in the same folder as `index.html` so it is inside the manifest scope. It is in the `sw.js` pre-cache list.
+- **Back to the player:** the first sidebar button is `#playerLink` (a plain `<a href="index.html">`, purple, play icon, label "Video player"; icon only when the sidebar is collapsed). It navigates in the same window, which always stays inside the installed app.
+- **One app, one look:** the light/dark choice is stored in `localStorage['ampm:prefs'].theme`, the same key `index.html` uses (read at start, written by the Theme button, merged into the existing object so the player's other settings are kept). A tiny script in `<head>` applies it before first paint. The two pages keep separate media libraries for now (picked files are not shared between them).
+- **Head tags must stay:** `Transcriptor.html` is only treated as part of the installed app if its `<head>` has `<link rel="manifest" href="manifest.webmanifest">`, the `theme-color` and apple meta tags and the icon links (copied from `index.html`). A version exported from the artifact editor had lost them, which is why the installed app opened this page in the normal browser. If the page is ever re-exported, check these first.
 - No build step, no dependencies, no backend. Only external resource is the Inter font from Google Fonts.
 - Media never leaves the machine: files are played through `URL.createObjectURL`.
 

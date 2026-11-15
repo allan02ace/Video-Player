@@ -1,5 +1,14 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#7c3aed"><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
 <title>AMPM Player</title>
+<meta name="theme-color" content="#7c3aed">
+<script>try{var pt=JSON.parse(localStorage.getItem('ampm:prefs')).theme;if(pt==='dark'||pt==='light')document.documentElement.dataset.theme=pt}catch(e){}</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AMPM">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -144,6 +153,9 @@
   .icon-btn.active {
     background: var(--accent); color: var(--acc-fg);
   }
+  a.icon-btn { text-decoration: none; }
+  .icon-btn.nav { background: var(--accent); color: var(--acc-fg); }
+  .icon-btn.nav:hover { background: var(--accent); filter: brightness(1.12); }
   .icon-btn.icon-row {
     display: flex;              /* was inheriting display:grid, which stacked icon above label */
     align-items: center;
@@ -608,6 +620,10 @@
         <span class="brand-name">AMPM</span>
       </div>
       <div class="lib-tools">
+        <a class="icon-btn icon-row nav" id="playerLink" href="index.html" aria-label="Back to the video player" title="Back to the video player">
+          <span aria-hidden="true">▶</span>
+          <span class="btn-label">Video player</span>
+        </a>
         <button class="icon-btn icon-row" id="libToggle" aria-label="Toggle library" type="button">
           <span aria-hidden="true">☰</span>
           <span class="btn-label">Library</span>
@@ -2340,17 +2356,21 @@
   }
 
   // ── Theme ─────────────────────────────────────────────────
-  function applyTheme(dark) {
+  function applyTheme(dark, save) {
     state.dark = dark;
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    if (save !== false) {   // same key the video player uses, so both pages keep one choice
+      try { const p = JSON.parse(localStorage.getItem('ampm:prefs')) || {}; p.theme = dark ? 'dark' : 'light'; localStorage.setItem('ampm:prefs', JSON.stringify(p)); } catch (_) {}
+    }
     document.getElementById('themeBtn').querySelector('span').textContent = dark ? '☾' : '☼';
     tlColorCache = null;
     tlDraw();
   }
 
   // Detect initial system preference
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  applyTheme(prefersDark);
+  let prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  try { const st = JSON.parse(localStorage.getItem('ampm:prefs')).theme; if (st === 'dark' || st === 'light') prefersDark = st === 'dark'; } catch (_) {}
+  applyTheme(prefersDark, false);
 
   // ── Events ────────────────────────────────────────────────
   document.getElementById('libToggle').addEventListener('click', () => {
