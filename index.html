@@ -708,7 +708,9 @@ if(!newReady)fetch(NEW_LINK).then(function(r){newReady=r.ok}).catch(function(){}
 function libToast(t){var b=$('ltoast');b.textContent=t;b.hidden=false;clearTimeout(ltT);ltT=setTimeout(function(){b.hidden=true},2200)}
 $('newBtn').onclick=function(){
   if(!newReady){libToast('Coming soon');return}
-  window.open(NEW_LINK,'_blank','noopener');
+  /* A plain target=_blank link (not window.open with a features string, which makes a popup) so the installed app opens it in an app window */
+  var a=document.createElement('a');a.href=NEW_LINK;a.target='_blank';a.rel='noopener';a.hidden=true;
+  document.body.appendChild(a);a.click();a.remove();
 };
 $('searchBtn').onclick=function(){var s=prompt('Search videos');if(s!==null){q=s.trim().toLowerCase();render()}};
 $('themeBtn').onclick=function(){var r=document.documentElement,d=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=d?'light':'dark';pref('theme',r.dataset.theme)};
@@ -1118,7 +1120,20 @@ window.addEventListener('orientationchange',function(){setTimeout(syncWide,300)}
 var LOCK_C='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 var LOCK_O='<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
 $('lock').innerHTML=LOCK_O;
-$('lock').addEventListener('click',function(){$('lock').innerHTML=lockOn?LOCK_C:LOCK_O});
+$('lock').addEventListener('click',function(){$('lock').innerHTML=lockOn?LOCK_C:LOCK_O;lockRot(lockOn)});
+/* ---- Lock also freezes screen rotation (phones, Android Chrome/Edge/Brave: needs full screen; iPhone Safari has no API for it) ---- */
+function lockRot(on){
+  var o=window.screen&&screen.orientation;
+  if(!coarse)return;
+  if(!on){try{if(o&&o.unlock)o.unlock()}catch(e){}return}
+  if(!o||!o.lock){flash('Controls locked<br><small>Rotation lock isn\u2019t supported here</small>');return}
+  var t=o.type,d=document.documentElement;
+  (document.fullscreenElement||!d.requestFullscreen?Promise.resolve():d.requestFullscreen({navigationUI:'hide'}))
+    .catch(function(){}).then(function(){return o.lock(t)})
+    .then(function(){flash('Controls and rotation locked')})
+    .catch(function(){flash('Controls locked<br><small>Rotation lock isn\u2019t available here</small>')});
+}
+document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement&&window.screen&&screen.orientation&&screen.orientation.unlock){try{screen.orientation.unlock()}catch(e){}}});
 /* ---- Volume up to 300% (Web Audio gain, started only when needed) ---- */
 var actx=null,gainN=null,an=null;
 function bootAudio(){
