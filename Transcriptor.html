@@ -597,6 +597,7 @@
   /* ── Review mode, text size ── */
   .mini-btn[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
   .editor-wrap.reviewing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .editor-wrap.reviewing.review-edit { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
   #transcriptText:read-only { cursor: default; }
   .font-wrap { position: relative; }
   .font-menu {
@@ -663,7 +664,7 @@
             <input id="rewindInput" type="number" min="0" max="10" step="1" value="2">
             s
           </label>
-          <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): locks the text; N / Shift+N play the next / previous timestamped line, R replays it">Review</button>
+          <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): listen with the keyboard. Pausing unlocks the text and puts the cursor on the line you just heard; after you resume, the cursor follows the audio">Review</button>
           <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
           <div class="font-wrap">
             <button class="mini-btn" id="fontBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Text size and line spacing">Aa</button>
@@ -683,7 +684,7 @@
           </div>
         </div>
       </div>
-      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (N / Shift + N = next / previous line, R = replay)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
         <div id="tsStatus"></div>
       </div>
@@ -933,10 +934,12 @@
     if (video.duration) seekBar.value = (video.currentTime / video.duration) * 1000;
   }
 
-  let reviewOn = false; // review mode: the editor is read-only
+  let reviewOn = false;   // review mode: listening, editor locked until the first pause
+  let reviewEdit = false; // review is on, but a pause has unlocked the editor
+  let lastTypeAt = 0;     // when the user last typed (the caret does not jump away right after)
   function reviewLocked() {
-    if (!reviewOn) return false;
-    tsStatusEl.textContent = 'Review mode — turn Review off to edit';
+    if (!reviewOn || reviewEdit) return false;
+    tsStatusEl.textContent = 'Review mode — pause to edit';
     return true;
   }
 
@@ -994,13 +997,30 @@
     lineHl.style.transform = `translateY(${hlDocTop - transcriptTextEl.scrollTop}px)`;
   }
 
+  // While the media is playing, the line being played is the highlighted one, even when the
+  // caret is in the editor. When paused (or no stamps match yet) the bar follows the caret again.
+  function playingLine() {
+    if (video.paused || video.ended || !state.items[state.activeIndex] || !transcriptTextEl.value) return null;
+    const now = (video.currentTime || 0) + 0.25;
+    let best = null;
+    for (const s of parseStamps(transcriptTextEl.value)) {
+      if (s.time <= now && (!best || s.time >= best.time)) best = s;
+    }
+    return best;
+  }
+
   function updateLineHighlight() {
     const ta = transcriptTextEl;
     if (!ta.value && document.activeElement !== ta) { lineHl.hidden = true; return; }
+    const pl = playingLine();
     const pos = ta.selectionStart || 0;
-    const start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
-    let end = ta.value.indexOf('\n', pos);
-    if (end < 0) end = ta.value.length;
+    let start, end;
+    if (pl) { start = pl.start; end = pl.end; }          // playing line wins over the caret line
+    else {
+      start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
+      end = ta.value.indexOf('\n', pos);
+      if (end < 0) end = ta.value.length;
+    }
     const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
     hlDocTop = offsetOfChar(start);
     lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px';
@@ -1021,6 +1041,7 @@
   window.addEventListener('resize', updateLineHighlight);
   window.addEventListener('load', updateLineHighlight);
   new ResizeObserver(updateLineHighlight).observe(transcriptTextEl);
+  ['play', 'pause', 'seeked', 'ended'].forEach(ev => video.addEventListener(ev, updateLineHighlight));
   updateLineHighlight();
 
   // ── Speakers ──────────────────────────────────────────────
@@ -1820,8 +1841,15 @@
     const top = Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3);
     ta.scrollTo({ top, behavior: force ? 'auto' : 'smooth' });
 
-    // When not typing, park the caret at the end of that line so Pause + edit lands there.
-    if (document.activeElement !== ta) {
+    if (reviewOn) {
+      // Review: the caret follows the audio to just after the line's timestamp, even while the
+      // editor is focused (not for 1.5 s after typing, so a word is never split between two lines).
+      if (!video.paused && performance.now() - lastTypeAt > 1500) {
+        const p = afterStampPos(best);
+        ta.setSelectionRange(p, p);
+      }
+    } else if (document.activeElement !== ta) {
+      // When not typing, park the caret at the end of that line so Pause + edit lands there.
       ta.setSelectionRange(best.end, best.end);
     }
     updateLineHighlight();
@@ -2379,9 +2407,9 @@
   }
 
   function pauseAndEdit() {
-    if (reviewOn) setReview(false, false);
     if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
     video.pause();
+    if (reviewOn) { reviewEditHere(); return; }   // review: the cursor goes to the line that was playing
     transcriptTextEl.focus();
     tsStatusEl.textContent = 'Paused — editing transcript';
   }
@@ -2463,86 +2491,73 @@
     else if (e.key === '-' || e.key === '_') tlZoomBy(1.6);
   });
 
-  // ── Review mode (Alt+R): read-only, step through the transcript against the audio ──
-  // N / Shift+N play the next / previous timestamped line (up to REVIEW_MAX s, or until the next
-  // timestamp), R replays the current one. Playback then pauses by itself.
+  // ── Review mode (Alt+R): listen straight through with the keyboard ──
+  // While listening the editor is locked (read-only), so Space / arrows only control playback.
+  // The moment you pause, the editor unlocks and the caret lands at the start of the line that
+  // was playing, just after its timestamp. It then stays editable and the caret follows the audio
+  // again when you resume. Alt+R (or the button) turns review off completely.
   const reviewBtn = document.getElementById('reviewBtn');
-  const REVIEW_MAX = 12;
-  let reviewFresh = true, reviewStart = 0, reviewStop = null, reviewRaf = 0;
+  transcriptTextEl.addEventListener('input', () => { lastTypeAt = performance.now(); });
 
-  function reviewCancel() {
-    cancelAnimationFrame(reviewRaf);
-    reviewStop = null;
-  }
   function setReview(on, announce) {
     reviewOn = !!on;
+    reviewEdit = false;
     transcriptTextEl.readOnly = reviewOn;
     editorWrap.classList.toggle('reviewing', reviewOn);
+    editorWrap.classList.remove('review-edit');
     reviewBtn.setAttribute('aria-pressed', String(reviewOn));
-    reviewFresh = true;
-    reviewCancel();
     if (reviewOn) transcriptTextEl.blur(); // so Space / arrows keep controlling playback
     if (announce) tsStatusEl.textContent = reviewOn
-      ? 'Review: N next line · Shift+N previous · R replay'
-      : 'Review off — editing unlocked';
+      ? 'Review: Space plays · pause to fix a line'
+      : 'Review off';
   }
-  function reviewTick() {
-    if (reviewStop == null) return;
-    const t = video.currentTime;
-    if (t > reviewStop + 1 || t < reviewStart - 0.5) { reviewCancel(); return; } // the user moved elsewhere
-    if (t >= reviewStop) { video.pause(); reviewCancel(); return; }
-    reviewRaf = requestAnimationFrame(reviewTick);
+  // Caret position at the start of a stamp line: just after the timestamp and the spaces after it.
+  function afterStampPos(st) {
+    const v = transcriptTextEl.value;
+    const ls = lineStamp(v.slice(st.start, st.end));
+    let p = st.start + (ls ? ls.index + ls.len : 0);
+    while (p < st.end && (v[p] === ' ' || v[p] === '\t')) p++;
+    return p;
   }
-  // dir: 1 next, -1 previous, 0 replay the current line
-  function reviewStep(dir) {
-    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
-    const ta = transcriptTextEl;
-    const stamps = parseStamps(ta.value);
-    if (!stamps.length) { tsStatusEl.textContent = 'No timestamps to review'; return; }
-    const caretLine = ta.value.slice(0, ta.selectionStart || 0).split('\n').length - 1;
-    const atOrAfter = () => { const k = stamps.findIndex(x => x.line >= caretLine); return k < 0 ? stamps.length - 1 : k; };
-    let i;
-    if (dir === 0 || reviewFresh) {
-      const cur = stamps.findIndex(x => x.line === caretLine);
-      i = cur >= 0 ? cur : atOrAfter();
-    } else {
-      const cur = stamps.findIndex(x => x.line === caretLine);
-      if (cur >= 0) i = cur + dir;
-      else if (dir > 0) i = stamps.findIndex(x => x.line > caretLine);
-      else { i = -1; stamps.forEach((x, k) => { if (x.line < caretLine) i = k; }); }
+  // The stamp line for a media time (same rule as follow-playback), playing or paused.
+  function stampLineAt(t) {
+    let best = null;
+    for (const s of parseStamps(transcriptTextEl.value)) {
+      if (s.time <= t + 0.25 && (!best || s.time >= best.time)) best = s;
     }
-    if (i < 0) { tsStatusEl.textContent = 'Start of transcript'; return; }
-    if (i >= stamps.length) { tsStatusEl.textContent = 'End of transcript'; return; }
-    reviewFresh = false;
-    const cur = stamps[i], next = stamps[i + 1];
-    let stop = cur.time + REVIEW_MAX;
-    if (next && next.time > cur.time) stop = Math.min(stop, next.time);
-    if (video.duration) stop = Math.min(stop, video.duration);
-    ta.setSelectionRange(cur.end, cur.end);
-    ta.scrollTo({ top: Math.max(0, offsetOfChar(cur.start) - ta.clientHeight * 0.3), behavior: 'auto' });
+    return best;
+  }
+  // Unlock the editor and put the caret on the line that was playing.
+  function reviewEditHere() {
+    if (!reviewOn) return;
+    const ta = transcriptTextEl;
+    const first = !reviewEdit;
+    reviewEdit = true;
+    ta.readOnly = false;
+    editorWrap.classList.add('review-edit');
+    if (!first && performance.now() - lastTypeAt < 1500) { updateLineHighlight(); return; } // mid-typing: leave the caret
+    const best = stampLineAt(video.currentTime || 0);
+    ta.focus();
+    if (best) {
+      const p = afterStampPos(best);
+      ta.setSelectionRange(p, p);
+      ta.scrollTo({ top: Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3), behavior: 'auto' });
+      lastSyncLine = best.line;
+    }
     updateLineHighlight();
-    reviewCancel();
-    pausedAt = null; // no auto-rewind: the clip should start exactly at the timestamp
-    video.currentTime = cur.time;
-    reviewStart = cur.time; reviewStop = stop;
-    video.play().catch(() => {});
-    reviewRaf = requestAnimationFrame(reviewTick);
-    tsStatusEl.textContent = `Review ${i + 1} / ${stamps.length}  [${fmtTime(cur.time)}]`;
+    tsStatusEl.textContent = best
+      ? `Paused at ${fmtTime(best.time)} — edit, Shift+Space to resume`
+      : 'Paused — edit, Shift+Space to resume';
   }
   reviewBtn.addEventListener('click', () => setReview(!reviewOn, true));
-  video.addEventListener('pause', reviewCancel);
-  // Capture phase: these keys must win over the global handler, and N / R must work even
-  // while the (read-only) editor has focus.
+  video.addEventListener('pause', () => {
+    if (reviewOn && !video.ended && video.readyState > 0 && state.items[state.activeIndex]) reviewEditHere();
+  });
+  // Capture phase so Alt+R wins over the global handler, also while the editor has focus.
   document.addEventListener('keydown', e => {
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyR') {
-      e.preventDefault(); e.stopImmediatePropagation(); setReview(!reviewOn, true); return;
+      e.preventDefault(); e.stopImmediatePropagation(); setReview(!reviewOn, true);
     }
-    if (!reviewOn || e.ctrlKey || e.metaKey || e.altKey) return;
-    const t = e.target;
-    if (t.tagName === 'INPUT' || (t.tagName === 'TEXTAREA' && t !== transcriptTextEl)) return;
-    const k = e.key.toLowerCase();
-    if (k === 'n') { e.preventDefault(); e.stopImmediatePropagation(); reviewStep(e.shiftKey ? -1 : 1); }
-    else if (k === 'r' && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); reviewStep(0); }
   }, true);
 
   // ── Text size and line spacing (Aa button) ────────────────

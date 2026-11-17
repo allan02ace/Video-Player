@@ -55,7 +55,7 @@ Adding a file is the first thing a user must do, so it never requires opening th
 - Ctrl/Cmd+F: find; Ctrl/Cmd+H: find and replace
 - F2 / F4: insert [inaudible] / [crosstalk] marker with the current time
 - Alt+↑ / Alt+↓: playback speed
-- Alt+R: review mode on/off (in review mode: `N` / Shift+`N` = next / previous timestamped line, `R` = replay the line)
+- Alt+R: review mode on/off (listen locked; pausing unlocks the editor with the caret at the playing line)
 - `[` / `]`: skip back/forward by the Skip value
 - Esc (in a text field): leave the editor so the shortcuts below work
 - Alt+click/drag on the timeline: seek without magnet snap
@@ -108,7 +108,7 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 - The textarea is wrapped in `.editor-wrap` (created in JS) with a `.line-hl` bar behind it. The textarea background must stay transparent for the bar to show.
 - `updateLineHighlight` highlights the whole line (including wrapped rows) the caret is on, measured with `offsetOfChar`. `positionLineHighlight` only re-applies the scroll offset and runs on every scroll.
-- When the textarea is not focused, the highlight shows the line that playback synced to.
+- **While the media is playing, the playing line wins** (`playingLine()`: the stamp line for the current time, same rule as follow-playback), even when the caret is in the editor and the user is typing. The caret and typing are untouched; only the bar moves. When paused, ended, or before the first stamp, the bar follows the caret again. `updateLineHighlight` also runs on `play`, `pause`, `seeked` and `ended`.
 
 ## Status messages
 
@@ -175,13 +175,14 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 - The **⚡ Phrases** button (speaker bar) opens a dialog with one `short = full text` per line (short forms: letters/numbers, up to 12; `#` lines ignored; max 300), saved raw in `localStorage` as `ampm.phrases`. Typing a short form followed by space or `. , ; ? !` expands it (`input` listener; `:` is deliberately excluded because the speaker autocomplete uses it). A capitalised short form capitalises the expansion. Uses `execCommand('insertText')` (`phraseBusy` guards re-entry), so Ctrl+Z undoes it.
 
-## Review mode (proofreading against the audio)
+## Review mode (listen with the keyboard, fix on pause)
 
-- Header button **Review** (`#reviewBtn`, `aria-pressed`) or **Alt+R** toggles `reviewOn` via `setReview(on, announce)`. Not saved: it always starts off.
-- While on, the textarea is `readOnly` and `.editor-wrap` gets `.reviewing` (accent outline). `reviewLocked()` guards `insertTimestamp`, `insertSpeaker`, `insertMarker`, `replaceOne` and `replaceAll` (they show "Review mode — turn Review off to edit") because `setRangeText` ignores `readOnly`. If you add another function that edits the text, add the same guard. `pauseAndEdit` turns review off first.
-- `reviewStep(dir)`: `N` = next, Shift+`N` = previous, `R` = replay (`dir` 1 / -1 / 0). The first step after entering review (`reviewFresh`) plays the timestamped line at or after the caret; later steps move relative to the caret's line, so clicking another line re-anchors. It selects the end of the line, scrolls with `offsetOfChar`, seeks to the timestamp and plays.
-- The clip stops by itself (`reviewTick`, rAF) at the next timestamp or after `REVIEW_MAX` (12 s), whichever comes first. A manual seek outside the clip, or any `pause`, cancels it (`reviewCancel`). `pausedAt` is cleared so auto-rewind does not shift the clip start.
-- The keys are handled in a **capture-phase** `keydown` listener so they win over the global handler and work while the read-only editor has focus; they are ignored inside other inputs (find bar etc.). Shift+Space, Space, arrows, `[` / `]` and timestamp clicks keep working.
+- Header button **Review** (`#reviewBtn`, `aria-pressed`) or **Alt+R** toggles `reviewOn` via `setReview(on, announce)`. Not saved: it always starts off. The old line-by-line stepping (`N` / Shift+`N` / `R`, the 12 s clip and its `reviewTick`) was **removed on purpose**; do not bring it back.
+- **Listening:** the textarea is `readOnly` (`.editor-wrap.reviewing`, accent outline) and blurred, so Space / Shift+Space / arrows / `[` `]` only control playback. Playback is normal and continuous; the highlight bar follows the playing line.
+- **Pause = edit:** any pause (Space, Shift+Space, media key, headset, the Pause + edit button or `P`) while review is on calls `reviewEditHere()`: it unlocks the editor (`reviewEdit = true`, `.review-edit` lighter outline), focuses it, puts the caret at the **start of the line that was playing, just after its timestamp and the spaces after it** (`stampLineAt`, `afterStampPos`), scrolls there and shows `Paused at m:ss — edit, Shift+Space to resume`. The `pause` listener ignores the end of the file and pauses while nothing is loaded.
+- **After resuming:** the editor **stays editable** and in `syncTranscriptToTime` the caret **follows the audio** to the start of each new playing line (even while the editor is focused), but not for 1.5 s after the user typed (`lastTypeAt`), so a word is never split between two lines. A later pause moves the caret back to the playing line unless the user was typing at that moment.
+- `reviewLocked()` (guard in `insertTimestamp`, `insertSpeaker`, `insertMarker`, `replaceOne`, `replaceAll`) is true only while locked (`reviewOn && !reviewEdit`); the message is `Review mode — pause to edit`. If you add another function that edits the text, add the same guard.
+- **Alt+R** (capture-phase listener so it wins everywhere) turns review off from either state; pressing it again starts a fresh locked review.
 
 ## Text size and line spacing
 
@@ -234,7 +235,7 @@ Windows is the primary target. Things to check when changing UI:
 - Press F2 / F4 while playing: markers appear with the current time. Ctrl+F, click "inaudible": the editor jumps to the marker and the audio to its time. Replace one and Replace All (one Ctrl+Z undoes All).
 - Bottom-left of the editor shows word count and "typed to X of Y (Z%)".
 - Add `tnx = Thank you.` under ⚡ Phrases, type `tnx ` in the editor: it expands; Ctrl+Z undoes it.
-- Review: load a file with a few timestamped lines, click **Review** (or Alt+R). The editor locks (typing, Ctrl+Enter, Alt+1…9, F2/F4, Replace do nothing and show the status note). Press `N`: it plays the first line from its timestamp and pauses at the next timestamp; `N` / Shift+`N` / `R` step and replay; at the ends the note says "End of transcript" / "Start of transcript". Seek elsewhere mid-clip: playback is left alone. **Pause + edit** turns review off.
+- Review: load a file with timestamped lines, click **Review** (or Alt+R). The editor locks (typing, Ctrl+Enter, Alt+1…9, F2/F4, Replace do nothing and show the status note). Press Space: it plays continuously and the highlight follows. Press Space again: the editor unlocks, the caret sits at the start of the line that was playing (after its timestamp), you can type or use the arrow keys. Shift+Space resumes (with the Rewind jump), the editor stays editable and the caret follows the audio; typing mid-line does not get the caret yanked away for 1.5 s. Alt+R turns review off.
 - Open **Aa**: change size and spacing; the editor text, the highlight bar and follow-playback scrolling stay aligned (also with wrapped lines). Reload: the setting is kept. Reset returns to 13.5 px / 1.65.
 - Press the keyboard media keys or headset buttons while a file has played: play/pause, seek, and previous/next track jumps between transcript timestamps; the OS media overlay shows the file name.
 - Verify dark mode and the mobile layout.
