@@ -940,6 +940,31 @@
     return true;
   }
 
+  // ── Timestamp formats ─────────────────────────────────────
+  // Bracketed [m:ss] / [h:mm:ss] anywhere on a line (what Ctrl+Enter inserts), or a bare
+  // m:ss / h:mm:ss at the START of a line, e.g. "00:00:02   Saan mo naman nalagayin?"
+  // (pasted transcripts). Times of day such as "10:30 am" are not stamps.
+  const BARE_STAMP = String.raw`(?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d+)?(?=\s|$)(?!\s*[AaPp]\.?[Mm]\b)`;
+  const STAMP_PREFIX = String.raw`(?:\[[\d:]+\]|` + BARE_STAMP + `)`;
+  const BARE_LINE_RE = new RegExp('^(\\s*)(' + BARE_STAMP + ')');
+  const BARE_WORD_RE = new RegExp('^[ \\t]*' + BARE_STAMP, 'gm');
+  const BRACKET_STAMP_RE = /\[(?:(\d+):)?(\d{1,2}):(\d{2})\]/;
+  function bareTime(t) {
+    const m = t.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})/);
+    return (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]);
+  }
+  function lineStamp(line) {
+    let m = line.match(BRACKET_STAMP_RE);
+    if (m) return { time: (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]), index: m.index, len: m[0].length };
+    m = line.match(BARE_LINE_RE);
+    return m ? { time: bareTime(m[2]), index: m[1].length, len: m[2].length } : null;
+  }
+  function stripLineStamp(l) {
+    if (BRACKET_STAMP_RE.test(l)) return l.replace(/\[(?:\d+:)?\d{1,2}:\d{2}\]\s?/g, '');
+    const m = l.match(BARE_LINE_RE);
+    return m ? l.slice(m[0].length).replace(/^[ \t]+/, '') : l;
+  }
+
   function insertTimestamp() {
     if (reviewLocked()) return;
     if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
@@ -1081,7 +1106,7 @@
     let lineEnd = v.indexOf('\n', pos);
     if (lineEnd < 0) lineEnd = v.length;
     const line = v.slice(lineStart, lineEnd);
-    const sm = line.match(/^\s*\[[\d:]+\]\s*/);
+    const sm = line.match(new RegExp('^\\s*' + STAMP_PREFIX + '\\s*'));
     const stampPart = sm ? sm[0] : '';
     const rest = line.slice(stampPart.length);
     const hasMedia = !!state.items[state.activeIndex];
@@ -1127,7 +1152,7 @@
   // the transcript or saved in the speaker bar: "MA:" -> "DR. MARIANO:".
   // Needs 2+ letters. A label that already exists exactly (e.g. "MA:" is itself used) is left alone.
   // Ctrl+Z undoes the completion.
-  const SPK_LABEL_RE = /^\s*(?:\[[\d:]+\]\s*)?([A-ZÑ][A-ZÑ0-9 .'\-]{1,38}):(?=\s|$)/;
+  const SPK_LABEL_RE = new RegExp('^\\s*(?:' + STAMP_PREFIX + '\\s*)?([A-ZÑ][A-ZÑ0-9 .\'\\-]{1,38}):(?=\\s|$)');
   let spkAutoBusy = false;
 
   function knownSpeakerNames(text, skipLine) {
@@ -1175,7 +1200,7 @@
     const pos = ta.selectionStart;
     if (pos !== ta.selectionEnd || v[pos - 1] !== ':') return;
     const lineStart = pos === 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1;
-    const m = v.slice(lineStart, pos).match(/^(\s*(?:\[[\d:]+\]\s*)?)([A-ZÑ][A-ZÑ .'\-]*[A-ZÑ.]|[A-ZÑ]{2}):$/);
+    const m = v.slice(lineStart, pos).match(new RegExp('^(\\s*(?:' + STAMP_PREFIX + '\\s*)?)([A-ZÑ][A-ZÑ .\'\\-]*[A-ZÑ.]|[A-ZÑ]{2}):$'));
     if (!m) return;
     const typed = m[2].trim();
     if (typed.replace(/[^A-ZÑ]/g, '').length < 2) return;
@@ -1312,7 +1337,7 @@
     const STAMP = /\[(?:\d+:)?\d{1,2}:\d{2}\]\s?/g;
     let lines = raw.replace(/\r\n?/g, '\n').split('\n');
     if (!exportStampsEl.checked) {
-      lines = lines.map(l => { const o = l.replace(STAMP, ''); return (o.trim() === '' && l.trim() !== '') ? null : o; })
+      lines = lines.map(l => { const o = stripLineStamp(l); return (o.trim() === '' && l.trim() !== '') ? null : o; })
                    .filter(l => l !== null);
     }
     const item = state.items[state.activeIndex];
@@ -1320,11 +1345,13 @@
     let blob, name;
     if (fmt === 'doc') {
       const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const labelRe = /^(\s*(?:\[[\d:]+\]\s*)?)([A-ZÑ][A-ZÑ0-9 .'\-]{1,38}:)(?=\s|$)/;
+      const labelRe = new RegExp('^(\\s*(?:' + STAMP_PREFIX + '\\s*)?)([A-ZÑ][A-ZÑ0-9 .\'\\-]{1,38}:)(?=\\s|$)');
       const paras = lines.map(l => {
         if (!l.trim()) return '<p>&nbsp;</p>';
         const m = l.match(labelRe);
-        const stampWrap = h => h.replace(/(\[[\d:]+\])/, '<span class="t">$1</span>');
+        const stampWrap = h => BRACKET_STAMP_RE.test(h)
+          ? h.replace(/(\[[\d:]+\])/, '<span class="t">$1</span>')
+          : h.replace(BARE_LINE_RE, '$1<span class="t">$2</span>');
         return m
           ? '<p>' + stampWrap(esc(m[1])) + '<b>' + esc(m[2]) + '</b>' + esc(l.slice(m[0].length)) + '</p>'
           : '<p>' + stampWrap(esc(l)) + '</p>';
@@ -1635,7 +1662,7 @@
   function updateMeta() {
     const v = transcriptTextEl.value;
     if (!v.trim()) { editorMeta.hidden = true; return; }
-    const words = v.split(/\s+/).filter(w => w && !/^\[[^\]]*\]$/.test(w)).length;
+    const words = v.replace(BARE_WORD_RE, ' ').split(/\s+/).filter(w => w && !/^\[[^\]]*\]$/.test(w)).length;
     let txt = words.toLocaleString() + (words === 1 ? ' word' : ' words');
     const dur = video.duration;
     if (state.items[state.activeIndex] && Number.isFinite(dur) && dur > 0) {
@@ -1748,11 +1775,8 @@
     const stamps = [];
     let pos = 0;
     text.split('\n').forEach((line, i) => {
-      const m = line.match(/\[(?:(\d+):)?(\d{1,2}):(\d{2})\]/);
-      if (m) {
-        const t = (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]);
-        stamps.push({ time: t, start: pos, end: pos + line.length, line: i });
-      }
+      const st = lineStamp(line);
+      if (st) stamps.push({ time: st.time, start: pos, end: pos + line.length, line: i });
       pos += line.length + 1;
     });
     return stamps;
@@ -1821,6 +1845,13 @@
         return { time, text: m[0], line: v.slice(0, lineStart).split('\n').length - 1 };
       }
     }
+    if (!BRACKET_STAMP_RE.test(line)) {
+      const b = line.match(BARE_LINE_RE);
+      if (b) {
+        const s = lineStart + b[1].length, e = s + b[2].length;
+        if (pos >= s && pos <= e) return { time: bareTime(b[2]), text: b[2], line: v.slice(0, lineStart).split('\n').length - 1 };
+      }
+    }
     return null;
   }
 
@@ -1836,7 +1867,7 @@
     video.currentTime = Math.max(0, Math.min(dur, hit.time));
     tsStatusEl.textContent = `Jumped to ${hit.text}`;
   });
-  transcriptTextEl.placeholder += '\n  Click a [timestamp] — audio jumps to it';
+  transcriptTextEl.placeholder += '\n  Click a timestamp ([m:ss] or 00:00:02 at the line start) — audio jumps to it';
 
   // ── Timestamp bookmarks on the seek bar ───────────────────
   // Every [m:ss] in the transcript becomes a small flag under the seek bar; click one to jump there.

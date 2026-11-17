@@ -61,9 +61,16 @@ Adding a file is the first thing a user must do, so it never requires opening th
 - Alt+click/drag on the timeline: seek without magnet snap
 - Outside text fields: Space, ←/→ (±5 s), ↑/↓ (volume boost ±10%), `P` (pause + edit), `T` (timestamp), `L` (A-B loop on/off), `+` / `-` (timeline zoom)
 
+## Timestamp formats
+
+- One place decides what a stamp is: `lineStamp(line)` (with `BRACKET_STAMP_RE`, `BARE_LINE_RE`, `bareTime`, `stripLineStamp`, `STAMP_PREFIX`), defined just above `insertTimestamp`. Everything that reads stamps goes through `parseStamps`, so follow-playback, the line highlight, timeline markers, Last, A-B loop options, Review, media-key previous/next and the progress readout all understand both forms.
+- Bracketed `[m:ss]` / `[h:mm:ss]` is recognised anywhere on a line and wins when a line has both. A bare stamp (`0:02`, `00:00:02`, optional `.5` fraction ignored) only counts at the **start** of a line and must be followed by whitespace or the end of the line, so `10:30 am` or `5:30 PM` at the start of a line is not a stamp.
+- Bare stamps also work for click-to-seek (`stampAtCaret`), the word count (not counted), Export with Include timestamps off (removed with the spaces after it), the Word export (stamp greyed) and speaker labels (a speaker can follow a bare stamp: `STAMP_PREFIX` is used by `insertSpeaker`, `SPK_LABEL_RE`, the autocomplete and the export label regex).
+- Ctrl+Enter, F2/F4 and new speaker turns still insert the bracketed form. Do not add a new place that checks for `[` only; use `lineStamp`.
+
 ## Transcript follows playback
 
-- Timestamps are `[m:ss]` or `[h:mm:ss]` anywhere on a line. `parseStamps` reads them, `syncTranscriptToTime` scrolls the textarea to the line matching the current media time.
+- Timestamps are `[m:ss]` or `[h:mm:ss]` anywhere on a line, **or a bare `m:ss` / `h:mm:ss` at the start of a line** (e.g. `00:00:02   text`, as in pasted transcripts; see "Timestamp formats"). `parseStamps` reads them, `syncTranscriptToTime` scrolls the textarea to the line matching the current media time.
 - It runs on `timeupdate` (only when the active line changes) and on `seeked` (always), so seeking by slider, `[`/`]` or arrows moves the editor.
 - Scroll position is measured with a hidden mirror div (`offsetOfChar`) because wrapped lines make line-index math wrong. Keep it in sync with the textarea font/padding.
 - When the textarea is not focused, the caret is parked at the end of the active line so Pause + edit continues there. While the user is typing, only the scroll changes.
