@@ -52,6 +52,7 @@ Adding a file is the first thing a user must do, so it never requires opening th
 - Shift+Space: play/pause (works inside the transcript too)
 - Ctrl/Cmd+Enter: insert timestamp
 - Ctrl/Cmd+S: export as .txt
+- Ctrl/Cmd + wheel, or Ctrl/Cmd + `+` / `-` / `0`: zoom the text (Ctrl+0 resets); the whole page never zooms
 - Ctrl/Cmd+F: find; Ctrl/Cmd+H: find and replace
 - F2 / F4: insert [inaudible] / [crosstalk] marker with the current time
 - Alt+↑ / Alt+↓: playback speed
@@ -186,8 +187,27 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 ## Text size and line spacing
 
-- **Aa** button (`#fontBtn`, menu `#fontMenu`, same open/close pattern as Export) with two sliders: size 11–24 px (`#fontSize`, default 13.5) and line spacing 1.3–2.4 (`#lineHeight`, default 1.65), plus Reset. Saved as JSON in `localStorage` `ampm.font` = `{fs, lh}`.
+- **Aa** button (`#fontBtn`, menu `#fontMenu`, same open/close pattern as Export) with two sliders: size 10–36 px (`#fontSize`, default 13.5, `FS_MIN` / `FS_MAX`) and line spacing 1.3–2.4 (`#lineHeight`, default 1.65), plus Reset. Saved as JSON in `localStorage` `ampm.font` = `{fs, lh}`.
 - The textarea font is `font: 500 var(--tx-fs, 13.5px)/var(--tx-lh, 1.65) "Inter"`; `applyFont` sets the two custom properties on `#transcriptText`. `offsetOfChar` and the line highlight read the computed font, so they follow automatically. `applyFont` keeps the caret's line at the same screen position while the metrics change. Do not hard-code the size elsewhere; the mirror div must keep using the textarea's computed font.
+
+### Quick zoom on the text box
+
+- Same setting as the size slider (`fontPrefs.fs`), changed through `zoomText(fs, announce)` (rounds to 0.5 px, clamps to `FS_MIN`–`FS_MAX`, calls `applyFont(true)`, toast `Text 130%` relative to the 13.5 px default). Inputs: **Ctrl/Cmd + mouse wheel** or trackpad pinch over the editor (non-passive `wheel` listener with `preventDefault`, so the page itself does not zoom; wheel notches step 1 px, small trackpad deltas scale smoothly via `zoomF`), **Ctrl/Cmd + `+` / `-` / `0`** anywhere in the page (0 resets), and **two-finger pinch** on touch screens (`touchstart` / `touchmove` on the textarea; `touch-action: pan-x pan-y` on `#transcriptText` keeps the browser's own pinch-zoom off the editor). Plain wheel and one-finger scrolling are untouched.
+- **The whole-app (browser page) zoom is blocked on purpose**: the viewport meta has `maximum-scale=1,user-scalable=no` (it is in the very first line of the file; keep it if the file is re-exported), `html, body { touch-action: pan-x pan-y }` stops pinch and double-tap zoom, a capture-phase `wheel` listener cancels Ctrl+wheel everywhere, `gesture*` events are cancelled for Safari, and a capture-phase `keydown` listener turns Ctrl/Cmd + `+` / `-` / `0` into text zoom anywhere in the page (not just in the editor). The browser's own menu zoom cannot be blocked by a page.
+
+## Time readout
+
+- `.tl-time` (current / total, in the timeline header) is large and high-contrast on a panel chip (19 px, total 15 px muted). In review mode `reviewOn` also sets `html.reviewing`, which makes it 30 px with an accent frame (`html.reviewing .tl-time`), since the clock is the thing watched while reviewing. Keep it readable in both themes (only `--ink`, `--muted`, `--panel`, `--accent` are used).
+
+## Keep media on this device (IndexedDB)
+
+- **Why:** the library (`state.items`, object URLs) lives in memory, so a reload, a browser that discards background tabs, or leaving for `index.html` and coming back used to empty it. Files added now are also stored in this browser (never uploaded) and restored on the next start.
+- **Storage:** IndexedDB database `ampm-transcriptor`, store `files` (keyPath `key`), records `{key, name, type, size, t, file}` where `key` is the same `name|size|lastModified` library key and `file` is the `File` itself (stored as a blob, not read into memory). `persistItem(item)` runs after `addFiles` (`item.saving` / `item.saved` drive the " · saving…" / " · saved" tag in the library list), checks room with `navigator.storage.estimate()` (needs the file size + 200 MB free) and asks for `navigator.storage.persist()`. A failure shows a toast and leaves the file memory-only.
+- **Setting:** sidebar checkbox **Keep on this device** (`#keepFiles`, saved as `ampm.keepFiles`, default on) only affects files added from then on. `#keepInfo` shows `Saved on this device: n files · x MB · about y GB room left`.
+- **Start-up:** `mediaAll()` at the end of the script re-creates the items (`saved: true`), sorted by time added, and opens the one in `localStorage['ampm.activeFile']` (written by `loadItem`) without autoplay, or the most recent. The restored transcript text follows the active file through `txOnLoad`.
+- **Removing:** every library item has a small ✕ (`.item-del`, `removeItem`) that asks for confirmation, removes the file from the library and from IndexedDB; if it was the open file the empty player returns. **Transcripts are never deleted by this.**
+- If a transcript's file is not in the library when another file is added, the editor switches to the new file's text and a toast says the previous transcript is kept; adding that file again brings it back.
+- The player page (`index.html`) has its own separate storage (`ampm` database / OPFS); the two libraries are not shared yet.
 
 ## Media keys and headset buttons (Media Session API)
 
@@ -238,4 +258,7 @@ Windows is the primary target. Things to check when changing UI:
 - Review: load a file with timestamped lines, click **Review** (or Alt+R). The editor locks (typing, Ctrl+Enter, Alt+1…9, F2/F4, Replace do nothing and show the status note). Press Space: it plays continuously and the highlight follows. Press Space again: the editor unlocks, the caret sits at the start of the line that was playing (after its timestamp), you can type or use the arrow keys. Shift+Space resumes (with the Rewind jump), the editor stays editable and the caret follows the audio; typing mid-line does not get the caret yanked away for 1.5 s. Alt+R turns review off.
 - Open **Aa**: change size and spacing; the editor text, the highlight bar and follow-playback scrolling stay aligned (also with wrapped lines). Reload: the setting is kept. Reset returns to 13.5 px / 1.65.
 - Press the keyboard media keys or headset buttons while a file has played: play/pause, seek, and previous/next track jumps between transcript timestamps; the OS media overlay shows the file name.
+- Hold Ctrl and roll the wheel over the editor (or press Ctrl + `+` / `-` / `0` anywhere): only the text zooms, the page does not (also check Ctrl+wheel over the timeline and the player, and pinch on a phone); the size matches the Aa slider and survives a reload. On a phone, pinch with two fingers on the editor.
+- Switch Review mode on (Alt+R): the time at the left of the timeline header becomes big with an accent frame; off again returns it to normal size.
+- Add a file, reload the page (and discard the tab from the browser's tab menu): the file is back in the library with the same transcript and opens ready to play. Untick **Keep on this device**, add another: it shows no "saved" tag and is gone after a reload. Remove a file with the ✕: it leaves the list and the device, and its transcript is still there when the file is added again.
 - Verify dark mode and the mobile layout.

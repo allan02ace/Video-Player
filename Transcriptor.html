@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#7c3aed"><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#7c3aed"><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"></head><body>
 <title>AMPM Player</title>
 <meta name="theme-color" content="#7c3aed">
 <script>try{var pt=JSON.parse(localStorage.getItem('ampm:prefs')).theme;if(pt==='dark'||pt==='light')document.documentElement.dataset.theme=pt}catch(e){}</script>
@@ -215,6 +215,18 @@
   .meta span { font-size: 10px; color: var(--muted); }
   .video-item.active .meta span { color: rgba(255,255,255,.7); }
 
+  .item-del {
+    margin-left: auto; flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
+    border-radius: 6px; font-size: 11px; color: var(--muted); opacity: 0; cursor: pointer;
+  }
+  .video-item:hover .item-del, .video-item:focus-within .item-del { opacity: 1; }
+  .item-del:hover { background: var(--line); }
+  .video-item.active .item-del { color: rgba(255,255,255,.85); }
+  .video-item.active .item-del:hover { background: rgba(255,255,255,.2); }
+  @media (hover: none) { .item-del { opacity: .7; } }
+  .keep-row { display: flex; align-items: center; gap: 6px; padding: 0 2px; font-size: 11px; color: var(--muted); cursor: pointer; }
+  .keep-info { padding: 0 2px; font-size: 10px; color: var(--muted); line-height: 1.35; }
+  .keep-info:empty { display: none; }
   .add-box {
     padding: 8px 6px 10px;
     border-top: 1px solid var(--line);
@@ -477,7 +489,15 @@
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
   }
-  .tl-time { font-size: 12px; white-space: nowrap; }
+  .tl-time {
+    font-size: 19px; font-weight: 700; line-height: 1.1; color: var(--ink); white-space: nowrap;
+    font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+    background: var(--panel); border-radius: 8px; padding: 4px 10px;
+  }
+  .tl-time #totalTime { font-size: 15px; font-weight: 600; color: var(--muted); }
+  /* Review mode: the clock is what you watch, so make it big with an accent frame */
+  html.reviewing .tl-time { font-size: 30px; padding: 4px 14px; box-shadow: inset 0 0 0 2px var(--accent); }
+  html.reviewing .tl-time #totalTime { font-size: 20px; }
   .tl-sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
   .tl-title { font-weight: 700; color: var(--ink); margin-right: 2px; }
   .tl-btn {
@@ -599,6 +619,8 @@
   .editor-wrap.reviewing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   .editor-wrap.reviewing.review-edit { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
   #transcriptText:read-only { cursor: default; }
+  #transcriptText { touch-action: pan-x pan-y; } /* pinch zooms the text (see zoomText), not the page */
+  html, body { touch-action: pan-x pan-y; }      /* no pinch / double-tap zoom of the whole app */
   .font-wrap { position: relative; }
   .font-menu {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 240px;
@@ -644,6 +666,8 @@
           <span aria-hidden="true">＋</span> Add video/audio
           <input id="fileIn" type="file" accept="video/*,audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.wma,.aiff,.webm,.mp4,.m4v,.mov,.mkv,.avi,.mpeg,.mpg" multiple hidden>
         </label>
+        <label class="keep-row" title="Keep added files in this browser so they are still here after a reload, a tab switch or a restart"><input type="checkbox" id="keepFiles" checked> Keep on this device</label>
+        <div class="keep-info" id="keepInfo"></div>
       </div>
     </div>
   </aside>
@@ -667,9 +691,9 @@
           <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): listen with the keyboard. Pausing unlocks the text and puts the cursor on the line you just heard; after you resume, the cursor follows the audio">Review</button>
           <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
           <div class="font-wrap">
-            <button class="mini-btn" id="fontBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Text size and line spacing">Aa</button>
+            <button class="mini-btn" id="fontBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Text size and line spacing (Ctrl+wheel or Ctrl + / − / 0 in the editor also zooms)">Aa</button>
             <div class="font-menu" id="fontMenu" hidden>
-              <label class="font-row"><span>Size</span><input id="fontSize" type="range" min="11" max="24" step="0.5"><output id="fontSizeVal"></output></label>
+              <label class="font-row"><span>Size</span><input id="fontSize" type="range" min="10" max="36" step="0.5"><output id="fontSizeVal"></output></label>
               <label class="font-row"><span>Spacing</span><input id="lineHeight" type="range" min="1.3" max="2.4" step="0.05"><output id="lineHeightVal"></output></label>
               <button type="button" class="mini-btn" id="fontReset">Reset</button>
             </div>
@@ -684,7 +708,7 @@
           </div>
         </div>
       </div>
-      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + wheel, or Ctrl/⌘ + / − / 0 — zoom the text&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
         <div id="tsStatus"></div>
       </div>
@@ -818,9 +842,11 @@
         <div class="thumb"><div class="bar"></div></div>
         <div class="meta">
           <strong></strong>
-          <span>${item.type === 'video' ? '🎬 Video' : '🎵 Audio'}</span>
-        </div>`;
+          <span>${item.type === 'video' ? '🎬 Video' : '🎵 Audio'}${item.saving ? ' · saving…' : item.saved ? ' · saved' : ''}</span>
+        </div>
+        <span class="item-del" role="button" tabindex="-1" title="Remove from the library" aria-label="Remove from the library">✕</span>`;
       btn.querySelector('strong').textContent = item.name;
+      btn.querySelector('.item-del').onclick = ev => { ev.stopPropagation(); removeItem(idx); };
       btn.onclick = () => loadItem(idx, true);
       libraryEl.appendChild(btn);
     });
@@ -828,6 +854,7 @@
 
   // ── Media ─────────────────────────────────────────────────
   function addFiles(fileList) {
+    const added = [];
     Array.from(fileList || []).forEach(file => {
       if (!file) return;
       const isVideo = file.type.startsWith('video/') || /\.(mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv)$/i.test(file.name);
@@ -835,7 +862,8 @@
       if (!isVideo && !isAudio) return;
       const key = `${file.name}|${file.size}|${file.lastModified}`;
       if (state.items.some(i => i.key === key)) return;
-      state.items.push({ key, name: cleanName(file.name), url: URL.createObjectURL(file), type: isVideo ? 'video' : 'audio', file });
+      const it = { key, name: cleanName(file.name), url: URL.createObjectURL(file), type: isVideo ? 'video' : 'audio', file };
+      state.items.push(it); added.push(it);
     });
     renderLibrary();
     if (state.items.length && state.activeIndex === -1) loadItem(0, false);
@@ -844,6 +872,7 @@
       state.libOpen = true;
       applyClasses();
     }
+    added.forEach(persistItem);
   }
 
   function loadItem(index, autoplay) {
@@ -851,6 +880,7 @@
     state.activeIndex = index;
     const item = state.items[index];
     txOnLoad(item);
+    try { localStorage.setItem('ampm.activeFile', item.key); } catch (_) {}
     video.src = item.url;
     videoTitleEl.textContent = item.name;
     emptyPlayerEl.hidden = true;
@@ -1285,7 +1315,7 @@
     pausedAt = null;
     if (item.key === txKey) { txName = item.name; return; }
     txSaveNow();                                   // flush the file we are leaving
-    const prevKey = txKey;
+    const prevKey = txKey, prevName = txName;
     const hadText = !!transcriptTextEl.value;
     const saved = txRead(item.key);
     let note = '';
@@ -1293,6 +1323,7 @@
       // Switching files: the editor shows that file's own transcript.
       txSetText(saved ? saved.text : '');
       if (saved) note = 'Restored saved transcript';
+      else if (hadText && !state.items.some(i => i.key === prevKey)) note = 'Transcript for “' + (prevName || 'the previous file') + '” is kept. Add that file again to bring it back.';
     } else if (!hadText) {
       if (saved) { txSetText(saved.text); note = 'Restored saved transcript'; }
     } else if (saved && saved.text !== transcriptTextEl.value) {
@@ -2504,6 +2535,7 @@
     reviewEdit = false;
     transcriptTextEl.readOnly = reviewOn;
     editorWrap.classList.toggle('reviewing', reviewOn);
+    document.documentElement.classList.toggle('reviewing', reviewOn);
     editorWrap.classList.remove('review-edit');
     reviewBtn.setAttribute('aria-pressed', String(reviewOn));
     if (reviewOn) transcriptTextEl.blur(); // so Space / arrows keep controlling playback
@@ -2562,6 +2594,7 @@
 
   // ── Text size and line spacing (Aa button) ────────────────
   const FONT_DEF = { fs: 13.5, lh: 1.65 };
+  const FS_MIN = 10, FS_MAX = 36;
   const fontBtn = document.getElementById('fontBtn');
   const fontMenu = document.getElementById('fontMenu');
   const fontSizeEl = document.getElementById('fontSize');
@@ -2573,7 +2606,7 @@
   try {
     const f = JSON.parse(localStorage.getItem('ampm.font') || 'null');
     if (f) {
-      fontPrefs.fs = clampNum(Number(f.fs), 11, 24, FONT_DEF.fs);
+      fontPrefs.fs = clampNum(Number(f.fs), FS_MIN, FS_MAX, FONT_DEF.fs);
       fontPrefs.lh = clampNum(Number(f.lh), 1.3, 2.4, FONT_DEF.lh);
     }
   } catch (_) {}
@@ -2591,7 +2624,7 @@
     updateLineHighlight();
     if (save) { try { localStorage.setItem('ampm.font', JSON.stringify(fontPrefs)); } catch (_) {} }
   }
-  fontSizeEl.addEventListener('input', () => { fontPrefs.fs = clampNum(Number(fontSizeEl.value), 11, 24, FONT_DEF.fs); applyFont(true); });
+  fontSizeEl.addEventListener('input', () => { fontPrefs.fs = clampNum(Number(fontSizeEl.value), FS_MIN, FS_MAX, FONT_DEF.fs); applyFont(true); });
   lineHeightEl.addEventListener('input', () => { fontPrefs.lh = clampNum(Number(lineHeightEl.value), 1.3, 2.4, FONT_DEF.lh); applyFont(true); });
   document.getElementById('fontReset').addEventListener('click', () => { fontPrefs.fs = FONT_DEF.fs; fontPrefs.lh = FONT_DEF.lh; applyFont(true); });
   function closeFont() { fontMenu.hidden = true; fontBtn.setAttribute('aria-expanded', 'false'); }
@@ -2603,6 +2636,51 @@
   document.addEventListener('click', e => { if (!fontMenu.hidden && !e.target.closest('.font-wrap')) closeFont(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fontMenu.hidden) closeFont(); });
   applyFont(false);
+
+  // ── Zoom the text box: Ctrl+wheel / trackpad pinch, Ctrl + = / - / 0, two-finger pinch ──
+  // Same setting as the Aa size slider (fontPrefs.fs, saved in ampm.font). Percent shown is relative to the default size.
+  let zoomF = fontPrefs.fs;   // unrounded value so small trackpad-pinch steps add up
+  function zoomText(fs, announce) {
+    const v = clampNum(Math.round(fs * 2) / 2, FS_MIN, FS_MAX, FONT_DEF.fs);
+    if (v === fontPrefs.fs) return;
+    fontPrefs.fs = v; zoomF = v;
+    applyFont(true);
+    if (announce) tsStatusEl.textContent = 'Text ' + Math.round(v / FONT_DEF.fs * 100) + '%';
+  }
+  transcriptTextEl.addEventListener('wheel', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;       // plain wheel keeps scrolling
+    e.preventDefault();                           // and the browser's own page zoom stays out
+    if (Math.abs(zoomF - fontPrefs.fs) >= 0.5) zoomF = fontPrefs.fs;   // slider or keys changed it meanwhile
+    const step = e.deltaMode === 1 || Math.abs(e.deltaY) >= 50;        // mouse wheel notch vs. trackpad pinch
+    zoomF = step ? zoomF + (e.deltaY < 0 ? 1 : -1) : zoomF * Math.exp(-e.deltaY * 0.02);
+    zoomF = clampNum(zoomF, FS_MIN, FS_MAX, FONT_DEF.fs);
+    zoomText(zoomF, true);
+  }, { passive: false });
+  // The whole-app (browser page) zoom is blocked everywhere; the same keys and Ctrl+wheel zoom the text instead.
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') { e.preventDefault(); zoomText(fontPrefs.fs + 1, true); }
+    else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') { e.preventDefault(); zoomText(fontPrefs.fs - 1, true); }
+    else if (e.key === '0' || e.code === 'Numpad0') { e.preventDefault(); zoomText(FONT_DEF.fs, true); }
+  }, true);
+  window.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false, capture: true });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(n => document.addEventListener(n, e => e.preventDefault())); // Safari pinch
+  let pinch = null;
+  const pinchDist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  transcriptTextEl.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) pinch = { d: pinchDist(e.touches) || 1, fs: fontPrefs.fs };
+  }, { passive: true });
+  transcriptTextEl.addEventListener('touchmove', e => {
+    if (pinch && e.touches.length === 2) { e.preventDefault(); zoomText(pinch.fs * pinchDist(e.touches) / pinch.d, false); }
+  }, { passive: false });
+  const pinchEnd = e => {
+    if (pinch && e.touches.length < 2) {
+      tsStatusEl.textContent = 'Text ' + Math.round(fontPrefs.fs / FONT_DEF.fs * 100) + '%';
+      pinch = null;
+    }
+  };
+  transcriptTextEl.addEventListener('touchend', pinchEnd);
+  transcriptTextEl.addEventListener('touchcancel', pinchEnd);
 
   // ── Media keys / headset buttons (Media Session API) ──────
   // Play/pause, seek back/forward (by the Skip value), and previous/next track = previous/next
@@ -2662,6 +2740,107 @@
     video.addEventListener('loadedmetadata', () => { msMeta(); msState(); });
     ['play', 'pause', 'seeked', 'ratechange'].forEach(ev => video.addEventListener(ev, msState));
   }
+
+  // ── Keep media on this device (IndexedDB) ─────────────────
+  // The library used to live only in memory, so a reload, a discarded background tab or leaving for the
+  // player page emptied it. Added files are now also stored in this browser (never uploaded) and come back
+  // on the next start. Same-named copy of the file is kept under its library key (name|size|lastModified).
+  const MEDIA_DB = 'ampm-transcriptor', MEDIA_STORE = 'files', ACTIVE_FILE_KEY = 'ampm.activeFile', KEEP_PREF = 'ampm.keepFiles';
+  const keepFilesEl = document.getElementById('keepFiles');
+  const keepInfoEl = document.getElementById('keepInfo');
+  try { keepFilesEl.checked = localStorage.getItem(KEEP_PREF) !== '0'; } catch (_) {}
+  keepFilesEl.addEventListener('change', () => { try { localStorage.setItem(KEEP_PREF, keepFilesEl.checked ? '1' : '0'); } catch (_) {} });
+
+  let mediaDbP = null;
+  function mediaDb() {
+    if (!mediaDbP) {
+      mediaDbP = new Promise((ok, no) => {
+        if (!window.indexedDB) { no(new Error('IndexedDB unavailable')); return; }
+        const r = indexedDB.open(MEDIA_DB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(MEDIA_STORE, { keyPath: 'key' });
+        r.onsuccess = () => ok(r.result);
+        r.onerror = () => no(r.error);
+      });
+    }
+    return mediaDbP;
+  }
+  function mediaTx(mode, fn) {
+    return mediaDb().then(db => new Promise((ok, no) => {
+      const t = db.transaction(MEDIA_STORE, mode);
+      const req = fn(t.objectStore(MEDIA_STORE));
+      t.oncomplete = () => ok(req && req.result);
+      t.onerror = () => no(t.error);
+      t.onabort = () => no(t.error);
+    }));
+  }
+  const mediaPut = rec => mediaTx('readwrite', st => st.put(rec));
+  const mediaDel = key => mediaTx('readwrite', st => st.delete(key));
+  const mediaAll = () => mediaTx('readonly', st => st.getAll());
+
+  function storageRoom(size) {
+    if (!(navigator.storage && navigator.storage.estimate)) return Promise.resolve(true);
+    return navigator.storage.estimate().then(e => !e || !e.quota || e.quota - (e.usage || 0) > size + 200 * 1048576, () => true);
+  }
+  function refreshKeepInfo() {
+    const saved = state.items.filter(i => i.saved);
+    if (!saved.length) { keepInfoEl.textContent = ''; return; }
+    const mb = Math.round(saved.reduce((n, i) => n + (i.file ? i.file.size : 0), 0) / 1048576);
+    const base = 'Saved on this device: ' + saved.length + (saved.length === 1 ? ' file' : ' files') + ' · ' + mb.toLocaleString() + ' MB';
+    keepInfoEl.textContent = base;
+    if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then(e => {
+        if (e && e.quota) keepInfoEl.textContent = base + ' · about ' + (Math.max(0, e.quota - (e.usage || 0)) / 1073741824).toFixed(1) + ' GB room left';
+      }).catch(() => {});
+    }
+  }
+  function persistItem(item) {
+    if (!keepFilesEl.checked || item.saved || item.saving || !item.file) return;
+    item.saving = true; renderLibrary();
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (_) {}
+    storageRoom(item.file.size)
+      .then(ok => { if (!ok) throw new Error('space'); return mediaPut({ key: item.key, name: item.name, type: item.type, size: item.file.size, t: Date.now(), file: item.file }); })
+      .then(() => { item.saved = true; })
+      .catch(() => { tsStatusEl.textContent = 'Could not keep “' + item.name + '” on this device (not enough space?). It will be gone after a reload.'; })
+      .then(() => { item.saving = false; renderLibrary(); refreshKeepInfo(); });
+  }
+  function removeItem(idx) {
+    const item = state.items[idx];
+    if (!item) return;
+    if (!confirm('Remove “' + item.name + '” from the library' + (item.saved ? ' and from this device' : '') + '?\n\nIts transcript stays saved.')) return;
+    const wasActive = idx === state.activeIndex;
+    state.items.splice(idx, 1);
+    try { URL.revokeObjectURL(item.url); } catch (_) {}
+    if (item.saved) mediaDel(item.key).catch(() => {});
+    if (wasActive) {
+      video.pause(); video.removeAttribute('src'); video.load();
+      state.activeIndex = -1;
+      emptyPlayerEl.hidden = false; controlsEl.hidden = true;
+      videoTitleEl.textContent = '—';
+      try { localStorage.removeItem(ACTIVE_FILE_KEY); } catch (_) {}
+      updatePlaybackUI(); renderBookmarks();
+    } else if (idx < state.activeIndex) {
+      state.activeIndex--;
+    }
+    renderLibrary(); refreshKeepInfo();
+  }
+  // On start: bring the kept files back and reopen the one that was open.
+  mediaAll().then(recs => {
+    if (!recs || !recs.length) return;
+    recs.sort((a, b) => a.t - b.t);
+    recs.forEach(r => {
+      if (!r.file || state.items.some(i => i.key === r.key)) return;
+      state.items.push({ key: r.key, name: r.name, type: r.type, url: URL.createObjectURL(r.file), file: r.file, saved: true });
+    });
+    renderLibrary(); refreshKeepInfo();
+    if (state.activeIndex === -1 && state.items.length) {
+      let want = null;
+      try { want = localStorage.getItem(ACTIVE_FILE_KEY); } catch (_) {}
+      let idx = state.items.findIndex(i => i.key === want);
+      if (idx < 0) idx = state.items.length - 1;
+      loadItem(idx, false);
+    }
+    tsStatusEl.textContent = 'Restored ' + recs.length + (recs.length === 1 ? ' file' : ' files') + ' saved on this device';
+  }).catch(() => {});
 
   // ── Init ──────────────────────────────────────────────────
   normalizeSkip();
