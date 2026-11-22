@@ -123,6 +123,14 @@ Adding a file is the first thing a user must do, so it never requires opening th
 - Re-measure triggers (`scheduleCalibrate`, debounced 200 ms): `input`, window `resize`/`load`, a `ResizeObserver` on the textarea, `document.fonts` `loadingdone`/`ready` (**Inter is a Google web font with `display=swap`: the text re-flows when it arrives**), the Aa font controls (`applyFont`), and `updateLineHighlight` when the text length changed by more than 200 characters without an input event (file load).
 - Gotcha: the `let` state of this block is declared **above** the first `updateLineHighlight()` call at start-up. Moving it lower causes a temporal-dead-zone error that stops the whole script.
 
+## Keep the highlight centered
+
+- **Aa menu > Keep highlight centered** (`#centerOn`, default on, saved as `ampm.center`). When on, `updateLineHighlight` ends with `centerHighlight(anchorTop, playing, lh)`: the row the bar is on (playing / estimated row, typing row, otherwise the caret row, or the bar's first row when the editor is not focused) is scrolled to the vertical centre of the editor. It is the only thing that scrolls for follow-playback in this mode (the old 30% / comfort-zone scroll in `syncTranscriptToTime` only runs when centring is off).
+- `syncCenterPad()` sets `--tx-padv` on the textarea to half the editor height minus half a line, so the first and last lines can also reach the centre (the textarea padding is `var(--tx-padv, 14px) 16px`). The mirror copies this padding and the offset cache key includes it.
+- Small steps while playing scroll smoothly (up to 2.5 lines); everything else (typing, key moves, seeks, big jumps) sets `scrollTop` directly and repositions the bar at once.
+- It deliberately does not fight the user: no centring while a mouse button is down and for 0.4 s after (double-click selects the word under the pointer, so the text must not move between clicks), and a manual scroll (wheel, touch, scrollbar drag) pauses it for 2.5 s. Any key or typing resumes it immediately.
+- The state (`centerOn`, `mouseDown`, ...) is declared in the early block above `hlDocTop`, before the first `updateLineHighlight()` call (see the temporal-dead-zone note under Text measuring).
+
 ## Status messages
 
 - `#tsStatus` (in `.transcript-footer`) is a floating note over the bottom-right corner of the editor, not a layout row. Setting its `textContent` shows it; a `MutationObserver` fades it out after 3 s and clears the text. It takes no vertical space. The audio file name is never written to it.

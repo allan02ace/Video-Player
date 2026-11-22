@@ -362,7 +362,7 @@
     height: 100%;
     width: 100%; border: 0; resize: none;
     background: transparent; color: var(--ink);
-    padding: 14px 16px;
+    padding: var(--tx-padv, 14px) 16px;
     font: 500 var(--tx-fs, 13.5px)/var(--tx-lh, 1.65) "Inter", sans-serif;
     outline: none;
   }
@@ -666,6 +666,7 @@
   .font-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
   .font-row > span { width: 56px; flex-shrink: 0; }
   .font-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .font-row input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
   .font-row output { width: 40px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
 </style>
 
@@ -732,6 +733,7 @@
             <div class="font-menu" id="fontMenu" hidden>
               <label class="font-row"><span>Size</span><input id="fontSize" type="range" min="10" max="36" step="0.5"><output id="fontSizeVal"></output></label>
               <label class="font-row"><span>Spacing</span><input id="lineHeight" type="range" min="1.3" max="2.4" step="0.05"><output id="lineHeightVal"></output></label>
+              <label class="font-row" title="Scroll so the highlighted row stays in the middle of the editor"><span style="width:auto">Keep highlight centered</span><input id="centerOn" type="checkbox"></label>
               <button type="button" class="mini-btn" id="fontReset">Reset</button>
             </div>
           </div>
@@ -1132,6 +1134,55 @@
     document.fonts.ready.then(scheduleCalibrate);
   }
 
+  // ── Keep the highlighted row in the middle ────────────────
+  // The editor behaves like a typewriter: whatever the bar is on (the playing / estimated row, the row you
+  // type on, the caret row) is scrolled to the vertical centre. Extra top/bottom padding (--tx-padv, half
+  // the editor height) lets the first and last lines reach the centre too. Mouse use is left alone while
+  // the button is down and for 0.4 s after (a double-click must not move the text under the pointer), and a
+  // manual scroll (wheel, touch, scrollbar) pauses the centring for 2.5 s; typing or keys resume it at once.
+  let centerOn = true, mouseDown = false, downScroll = 0, centerHoldUntil = 0, userScrollUntil = 0;
+  try { centerOn = localStorage.getItem('ampm.center') !== '0'; } catch (_) {}
+  const centerEl = document.getElementById('centerOn');
+  centerEl.checked = centerOn;
+  function syncCenterPad() {
+    const ta = transcriptTextEl;
+    if (!centerOn) {
+      if (ta.style.getPropertyValue('--tx-padv')) { ta.style.removeProperty('--tx-padv'); offCache.clear(); }
+      return;
+    }
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    const pad = Math.max(14, Math.round(ta.clientHeight / 2 - lh / 2)) + 'px';
+    if (ta.style.getPropertyValue('--tx-padv') !== pad) { ta.style.setProperty('--tx-padv', pad); offCache.clear(); }
+  }
+  function centerHighlight(anchorTop, playing, lh) {
+    const now = performance.now();
+    if (!centerOn || mouseDown || now < centerHoldUntil || now < userScrollUntil) return;
+    const ta = transcriptTextEl;
+    const target = Math.max(0, Math.round(anchorTop + lh / 2 - ta.clientHeight / 2));
+    const delta = target - ta.scrollTop;
+    if (Math.abs(delta) < 2) return;
+    if (playing && Math.abs(delta) <= lh * 2.5) ta.scrollTo({ top: target, behavior: 'smooth' });
+    else { ta.scrollTop = target; positionLineHighlight(); }
+  }
+  transcriptTextEl.addEventListener('wheel', () => { userScrollUntil = performance.now() + 2500; }, { passive: true });
+  transcriptTextEl.addEventListener('touchmove', () => { userScrollUntil = performance.now() + 2500; }, { passive: true });
+  transcriptTextEl.addEventListener('keydown', () => { userScrollUntil = 0; });
+  transcriptTextEl.addEventListener('input', () => { userScrollUntil = 0; });
+  transcriptTextEl.addEventListener('mousedown', () => { mouseDown = true; downScroll = transcriptTextEl.scrollTop; });
+  window.addEventListener('mouseup', () => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    if (Math.abs(transcriptTextEl.scrollTop - downScroll) > 3) userScrollUntil = performance.now() + 2500; // dragged the scrollbar
+    centerHoldUntil = performance.now() + 400;
+    setTimeout(updateLineHighlight, 420);
+  });
+  centerEl.addEventListener('change', () => {
+    centerOn = centerEl.checked;
+    try { localStorage.setItem('ampm.center', centerOn ? '1' : '0'); } catch (_) {}
+    userScrollUntil = 0; centerHoldUntil = 0;
+    syncCenterPad(); scheduleCalibrate(); updateLineHighlight();
+  });
+
   let hlDocTop = 0;
 
   function positionLineHighlight() {
@@ -1194,6 +1245,7 @@
   function updateLineHighlight() {
     const ta = transcriptTextEl;
     if (!ta.value && document.activeElement !== ta) { lineHl.hidden = true; return; }
+    syncCenterPad();
     if (Math.abs(ta.value.length - calLen) > 200) scheduleCalibrate();
     const pp = playPos();
     const pos = ta.selectionStart || 0;
@@ -1217,6 +1269,8 @@
     lineHl.style.width = ta.clientWidth + 'px';
     lineHl.hidden = false;
     positionLineHighlight();
+    // centre the row that matters: the playing / typing row, else the caret row (or the bar's first row)
+    centerHighlight(row >= 0 ? hlDocTop : (document.activeElement === ta ? offsetOfChar(pos) : hlDocTop), !!pp && !pp.typing, lh);
   }
 
   transcriptTextEl.addEventListener('input', updateLineHighlight);
@@ -1998,7 +2052,7 @@
   function offsetOfChar(index) {
     const ta = transcriptTextEl, cs = getComputedStyle(ta);
     const w = textareaBoxWidth(ta, cs) + calDelta, val = ta.value;
-    const sig = w + '|' + cs.fontFamily + '|' + cs.fontSize + '|' + cs.fontWeight + '|' + cs.lineHeight + '|' + cs.letterSpacing;
+    const sig = w + '|' + cs.paddingTop + '|' + cs.fontFamily + '|' + cs.fontSize + '|' + cs.fontWeight + '|' + cs.lineHeight + '|' + cs.letterSpacing;
     if (offCacheText !== val || offCacheSig !== sig) { offCache.clear(); offCacheText = val; offCacheSig = sig; }
     if (offCache.has(index)) return offCache.get(index);
     const m = getMirror();
@@ -2032,7 +2086,7 @@
     if (!lineChanged && !pp) return;
     // Scroll to the stamp line when it changes (or when paused / seeking). While playing, keep the
     // estimated row in view; never scroll away from the row the user is typing on.
-    if (!(pp && pp.typing)) {
+    if (!centerOn && !(pp && pp.typing)) {
       const target = offsetOfChar(pp ? Math.min(pp.at + 1, ta.value.length) : best.start);
       const vis = target - ta.scrollTop;
       if (lineChanged || vis < ta.clientHeight * 0.12 || vis > ta.clientHeight * 0.75) {
