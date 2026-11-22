@@ -74,7 +74,7 @@ Adding a file is the first thing a user must do, so it never requires opening th
 ## Transcript follows playback
 
 - Timestamps are `[m:ss]` or `[h:mm:ss]` anywhere on a line, **or a bare `m:ss` / `h:mm:ss` at the start of a line** (e.g. `00:00:02   text`, as in pasted transcripts; see "Timestamp formats"). `parseStamps` reads them, `syncTranscriptToTime` scrolls the textarea to the line matching the current media time.
-- It runs on `timeupdate` (only when the active line changes) and on `seeked` (always), so seeking by slider, `[`/`]` or arrows moves the editor.
+- It runs on `timeupdate` and on `seeked` (always), so seeking by slider, `[`/`]` or arrows moves the editor. While playing it also refreshes the estimated row every tick, but only scrolls when the stamp line changes or the estimated row leaves the comfortable zone (12% to 75% of the editor height); it never scrolls while you type in the playing block.
 - Scroll position is measured with a hidden mirror div (`offsetOfChar`) because wrapped lines make line-index math wrong. Keep it in sync with the textarea font/padding.
 - When the textarea is not focused, the caret is parked at the end of the active line so Pause + edit continues there. While the user is typing, only the scroll changes.
 
@@ -111,7 +111,17 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 - The textarea is wrapped in `.editor-wrap` (created in JS) with a `.line-hl` bar behind it. The textarea background must stay transparent for the bar to show.
 - `updateLineHighlight` highlights the whole line (including wrapped rows) the caret is on, measured with `offsetOfChar`. `positionLineHighlight` only re-applies the scroll offset and runs on every scroll.
-- **While the media is playing, the playing line wins** (`playingLine()`: the stamp line for the current time, same rule as follow-playback), even when the caret is in the editor and the user is typing. The caret and typing are untouched; only the bar moves. When paused, ended, or before the first stamp, the bar follows the caret again. `updateLineHighlight` also runs on `play`, `pause`, `seeked` and `ended`.
+- **While the media is playing the bar shows where the audio is, as one visual row** (`playPos()`), not the whole line, and it wins over the caret line:
+  - **Estimated position inside a block.** A block = a stamp line plus the unstamped text under it, up to the next stamp. With a next stamp the word index is `elapsed / gap x words`; after the last stamp it is `elapsed x pace`, where `pace` (`speechPace`) is words per second from up to 40 closed blocks above (gaps 1 to 60 s, clamped 0.8 to 4.5, 2.3 until 3 blocks exist). The estimated row is drawn lighter with a dashed edge (`.line-hl.est`, after 1.5 s into a block). It never passes the last word that exists, so when you are behind the audio it sits on the last typed word. It snaps to the exact stamp row at every new stamp.
+  - **Cursor follows past the stamp.** If the editor is focused and the caret is inside the playing block (from the stamp to the next stamp, or the end), the bar sits on the **caret's row** and follow-playback does not scroll away from it.
+  - Paused, ended, or before the first stamp: the bar goes back to the whole caret line (or the Mark / Assign line).
+
+## Text measuring (why the highlight must not drift)
+
+- `offsetOfChar(index)` re-flows `value.slice(0, index)` in one persistent hidden div (`getMirror`) and reads a zero-width marker's `offsetTop`. If the mirror wraps even one row differently from the textarea, everything below that point is off by a row, so on a 4000-word transcript the highlight and the follow-scroll visibly stop matching the text.
+- What keeps it exact (all in the "Text measuring" block above `hlDocTop`): (1) the textarea's **computed** text styles are copied onto the mirror (`MIRROR_PROPS`), nothing is inherited from `<body>`; (2) the mirror uses the textarea's **fractional** width (`textareaBoxWidth`: bounding rect minus scrollbar; `clientWidth` is rounded and flips marginal wraps); (3) `calibrateMirror()` tries tiny width offsets (0, ±0.25 … ±3 px) until the mirror's full height equals `ta.scrollHeight` (same row count) and stores `calDelta`; (4) results are cached per text + metrics (`offCache`) so repeated lookups in a tick cost one layout.
+- Re-measure triggers (`scheduleCalibrate`, debounced 200 ms): `input`, window `resize`/`load`, a `ResizeObserver` on the textarea, `document.fonts` `loadingdone`/`ready` (**Inter is a Google web font with `display=swap`: the text re-flows when it arrives**), the Aa font controls (`applyFont`), and `updateLineHighlight` when the text length changed by more than 200 characters without an input event (file load).
+- Gotcha: the `let` state of this block is declared **above** the first `updateLineHighlight()` call at start-up. Moving it lower causes a temporal-dead-zone error that stops the whole script.
 
 ## Status messages
 

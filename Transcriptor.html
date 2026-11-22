@@ -351,6 +351,12 @@
     box-shadow: inset 3px 0 0 var(--accent);
     will-change: transform;
   }
+  /* Estimated position (by word count) rather than an exact stamp: lighter, dashed edge */
+  .line-hl.est {
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    box-shadow: none;
+    border-left: 3px dashed color-mix(in srgb, var(--accent) 65%, transparent);
+  }
   #transcriptText {
     position: relative; z-index: 1;
     height: 100%;
@@ -1057,42 +1063,157 @@
   transcriptTextEl.parentNode.insertBefore(editorWrap, transcriptTextEl);
   editorWrap.append(lineHl, transcriptTextEl);
 
+  // ── Text measuring (mirror) ───────────────────────────────
+  // offsetOfChar() re-flows the same text in a hidden div to learn where a character sits. The mirror
+  // must wrap EXACTLY like the textarea, otherwise the highlight drifts by whole rows on a long
+  // transcript (4000+ words). So: the textarea's computed text styles are copied (not inherited from
+  // <body>), its fractional content width is used (clientWidth is rounded), and the width is calibrated
+  // against the textarea's real scrollHeight. Everything is re-measured when the Inter web font arrives
+  // (display=swap re-flows the text), on resize, on font-size changes and after big text changes.
+  // NOTE: these `let`s must stay above the first updateLineHighlight() call (temporal dead zone).
+  const MIRROR_PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant', 'fontStretch', 'fontKerning',
+    'fontFeatureSettings', 'fontVariationSettings', 'fontOpticalSizing', 'lineHeight', 'letterSpacing', 'wordSpacing',
+    'textTransform', 'textIndent', 'textRendering', 'tabSize', 'wordBreak', 'hyphens', 'direction'];
+  let mirrorEl = null, calDelta = 0, calLen = 0, calT = 0;
+  let offCache = new Map(), offCacheText = null, offCacheSig = '';
+
+  function getMirror() {
+    if (!mirrorEl) {
+      mirrorEl = document.createElement('div');
+      mirrorEl.setAttribute('aria-hidden', 'true');
+      mirrorEl.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;top:0;left:-9999px;' +
+        'white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;overflow:hidden;border:0;';
+      document.body.appendChild(mirrorEl);
+    }
+    return mirrorEl;
+  }
+  // Fractional width of the textarea's padding box minus its scrollbar (the mirror is border-box with the same padding).
+  function textareaBoxWidth(ta, cs) {
+    const bw = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+    const sb = Math.max(0, ta.offsetWidth - ta.clientWidth - bw);
+    return Math.max(10, ta.getBoundingClientRect().width - bw - sb);
+  }
+  function paintMirror(m, ta, cs, w) {
+    for (const p of MIRROR_PROPS) if (cs[p]) m.style[p] = cs[p];
+    m.style.padding = `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`;
+    m.style.width = w + 'px';
+  }
+  // Find the mirror width whose total height equals the textarea's real scrollHeight (same number of rows).
+  function calibrateMirror() {
+    const ta = transcriptTextEl, val = ta.value;
+    calLen = val.length;
+    offCache.clear();
+    if (!val || ta.scrollHeight <= ta.clientHeight + 1) { calDelta = 0; return; }
+    const cs = getComputedStyle(ta), base = textareaBoxWidth(ta, cs), m = getMirror();
+    paintMirror(m, ta, cs, base);
+    m.textContent = val;
+    const end = document.createElement('span'); end.textContent = '\u200b'; m.appendChild(end);
+    const target = ta.scrollHeight;
+    let best = 0, bestErr = Infinity;
+    for (const d of [0, -0.25, 0.25, -0.5, 0.5, -1, 1, -2, 2, -3, 3]) {
+      m.style.width = (base + d) + 'px';
+      const err = Math.abs(m.scrollHeight - target);
+      if (err < bestErr) { bestErr = err; best = d; }
+      if (err <= 1) break;
+    }
+    calDelta = best;
+    m.textContent = '';
+  }
+  function scheduleCalibrate() {
+    clearTimeout(calT);
+    calT = setTimeout(() => { calibrateMirror(); updateLineHighlight(); }, 200);
+  }
+  transcriptTextEl.addEventListener('input', scheduleCalibrate);
+  window.addEventListener('resize', scheduleCalibrate);
+  window.addEventListener('load', scheduleCalibrate);
+  new ResizeObserver(scheduleCalibrate).observe(transcriptTextEl);
+  if (document.fonts) {
+    document.fonts.addEventListener('loadingdone', scheduleCalibrate);
+    document.fonts.ready.then(scheduleCalibrate);
+  }
+
   let hlDocTop = 0;
 
   function positionLineHighlight() {
     lineHl.style.transform = `translateY(${hlDocTop - transcriptTextEl.scrollTop}px)`;
   }
 
-  // While the media is playing, the line being played is the highlighted one, even when the
-  // caret is in the editor. When paused (or no stamps match yet) the bar follows the caret again.
-  function playingLine() {
-    if (video.paused || video.ended || !state.items[state.activeIndex] || !transcriptTextEl.value) return null;
-    const now = (video.currentTime || 0) + 0.25;
-    let best = null;
-    for (const s of parseStamps(transcriptTextEl.value)) {
-      if (s.time <= now && (!best || s.time >= best.time)) best = s;
+  // ── Where in the transcript is the audio? ────────────────
+  // A stamp only says where a *block* starts: the stamp line plus the unstamped text under it, up to the
+  // next stamp. Inside a block the position is estimated by word count: with a next stamp it is
+  // elapsed / gap x words; after the last stamp it is elapsed x the speech pace (words per second)
+  // learned from the stamped blocks above. If the user is typing inside that block, the cursor's row
+  // is the better answer and wins. Returns null while paused or when no stamp has been reached.
+  let paceKey = -1, paceVal = 2.3;
+  function wordStarts(text, from, to) {
+    const out = [], re = /\S+/g, body = text.slice(from, to);
+    let m;
+    while ((m = re.exec(body))) out.push(from + m.index);
+    return out;
+  }
+  function speechPace(text, stamps) {
+    if (paceKey === text.length) return paceVal;
+    let words = 0, secs = 0, n = 0;
+    for (let i = stamps.length - 2; i >= 0 && n < 40; i--) {
+      const gap = stamps[i + 1].time - stamps[i].time;
+      if (gap < 1 || gap > 60) continue;
+      const w = wordStarts(text, afterStampPos(stamps[i]), stamps[i + 1].start).length;
+      if (w < 2) continue;
+      words += w; secs += gap; n++;
     }
-    return best;
+    paceKey = text.length;
+    paceVal = n >= 3 ? Math.min(4.5, Math.max(0.8, words / secs)) : 2.3;
+    return paceVal;
+  }
+  function playPos() {
+    if (video.paused || video.ended || !state.items[state.activeIndex]) return null;
+    const ta = transcriptTextEl, text = ta.value;
+    if (!text) return null;
+    const stamps = parseStamps(text);
+    const now = (video.currentTime || 0) + 0.25;
+    let bi = -1;
+    for (let i = 0; i < stamps.length; i++) {
+      if (stamps[i].time <= now && (bi < 0 || stamps[i].time >= stamps[bi].time)) bi = i;
+    }
+    if (bi < 0) return null;
+    const best = stamps[bi], next = stamps[bi + 1] || null;
+    const blockEnd = next ? Math.max(best.end, next.start - 1) : text.length;
+    const words = wordStarts(text, afterStampPos(best), blockEnd);
+    const pos = ta.selectionStart || 0;
+    const typing = document.activeElement === ta && pos >= best.start && pos <= blockEnd;
+    let idx = 0, est = false;
+    if (words.length) {
+      const el = Math.max(0, now - best.time);
+      const rate = next && next.time > best.time ? words.length / (next.time - best.time) : speechPace(text, stamps);
+      idx = Math.min(words.length - 1, Math.floor(el * rate));
+      est = el > 1.5 && words.length > 1;
+    }
+    return { best, blockEnd, typing, est, at: words.length ? words[idx] : best.start };
   }
 
   function updateLineHighlight() {
     const ta = transcriptTextEl;
     if (!ta.value && document.activeElement !== ta) { lineHl.hidden = true; return; }
-    const pl = playingLine();
+    if (Math.abs(ta.value.length - calLen) > 200) scheduleCalibrate();
+    const pp = playPos();
     const pos = ta.selectionStart || 0;
-    let start, end;
+    let start, end, row = -1, est = false;
     if ((markOn || assignOn) && modePos >= 0) {          // Mark / Assign: the line waiting for a mark
       start = modePos; end = ta.value.indexOf('\n', modePos); if (end < 0) end = ta.value.length;
     }
-    else if (pl) { start = pl.start; end = pl.end; }     // playing line wins over the caret line
+    else if (pp) {                                       // playing: one row, not the whole line
+      row = pp.typing ? pos : Math.min(pp.at + 1, ta.value.length); // typing in the block: your cursor row; else the estimated word's row
+      est = !pp.typing && pp.est;
+    }
     else {
       start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
       end = ta.value.indexOf('\n', pos);
       if (end < 0) end = ta.value.length;
     }
     const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
-    hlDocTop = offsetOfChar(start);
-    lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px';
+    if (row >= 0) { hlDocTop = offsetOfChar(row); lineHl.style.height = lh + 'px'; }
+    else { hlDocTop = offsetOfChar(start); lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px'; }
+    lineHl.classList.toggle('est', est);
     lineHl.style.width = ta.clientWidth + 'px';
     lineHl.hidden = false;
     positionLineHighlight();
@@ -1873,23 +1994,21 @@
     return stamps;
   }
 
-  // Pixel offset of a character index inside the textarea (handles wrapped lines).
+  // Pixel offset of a character index inside the textarea (handles wrapped lines). See "Text measuring" above.
   function offsetOfChar(index) {
-    const ta = transcriptTextEl;
-    const cs = getComputedStyle(ta);
-    const mirror = document.createElement('div');
-    mirror.style.cssText =
-      `position:absolute;visibility:hidden;top:0;left:-9999px;white-space:pre-wrap;` +
-      `overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:${ta.clientWidth}px;` +
-      `font:${cs.font};letter-spacing:${cs.letterSpacing};` +
-      `padding:${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft};`;
-    mirror.textContent = ta.value.slice(0, index);
+    const ta = transcriptTextEl, cs = getComputedStyle(ta);
+    const w = textareaBoxWidth(ta, cs) + calDelta, val = ta.value;
+    const sig = w + '|' + cs.fontFamily + '|' + cs.fontSize + '|' + cs.fontWeight + '|' + cs.lineHeight + '|' + cs.letterSpacing;
+    if (offCacheText !== val || offCacheSig !== sig) { offCache.clear(); offCacheText = val; offCacheSig = sig; }
+    if (offCache.has(index)) return offCache.get(index);
+    const m = getMirror();
+    paintMirror(m, ta, cs, w);
+    m.textContent = val.slice(0, index);
     const marker = document.createElement('span');
     marker.textContent = '\u200b';
-    mirror.appendChild(marker);
-    document.body.appendChild(mirror);
+    m.appendChild(marker);
     const top = marker.offsetTop;
-    document.body.removeChild(mirror);
+    offCache.set(index, top);
     return top;
   }
 
@@ -1905,23 +2024,34 @@
       if (s.time <= now && (!best || s.time >= best.time)) best = s;
     }
     if (!best) return;
-    if (!force && best.line === lastSyncLine) return;
+    const lineChanged = force || best.line !== lastSyncLine;
     lastSyncLine = best.line;
 
     const ta = transcriptTextEl;
-    const top = Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3);
-    ta.scrollTo({ top, behavior: force ? 'auto' : 'smooth' });
-
-    if (reviewOn) {
-      // Review: the caret follows the audio to just after the line's timestamp, even while the
-      // editor is focused (not for 1.5 s after typing, so a word is never split between two lines).
-      if (!video.paused && performance.now() - lastTypeAt > 1500) {
-        const p = afterStampPos(best);
-        ta.setSelectionRange(p, p);
+    const pp = playPos();                       // estimated word inside this block; null while paused
+    if (!lineChanged && !pp) return;
+    // Scroll to the stamp line when it changes (or when paused / seeking). While playing, keep the
+    // estimated row in view; never scroll away from the row the user is typing on.
+    if (!(pp && pp.typing)) {
+      const target = offsetOfChar(pp ? Math.min(pp.at + 1, ta.value.length) : best.start);
+      const vis = target - ta.scrollTop;
+      if (lineChanged || vis < ta.clientHeight * 0.12 || vis > ta.clientHeight * 0.75) {
+        ta.scrollTo({ top: Math.max(0, target - ta.clientHeight * 0.3), behavior: force ? 'auto' : 'smooth' });
       }
-    } else if (document.activeElement !== ta) {
-      // When not typing, park the caret at the end of that line so Pause + edit lands there.
-      ta.setSelectionRange(best.end, best.end);
+    }
+
+    if (lineChanged) {
+      if (reviewOn) {
+        // Review: the caret follows the audio to just after the line's timestamp, even while the
+        // editor is focused (not for 1.5 s after typing, so a word is never split between two lines).
+        if (!video.paused && performance.now() - lastTypeAt > 1500) {
+          const p = afterStampPos(best);
+          ta.setSelectionRange(p, p);
+        }
+      } else if (document.activeElement !== ta) {
+        // When not typing, park the caret at the end of that line so Pause + edit lands there.
+        ta.setSelectionRange(best.end, best.end);
+      }
     }
     updateLineHighlight();
   }
@@ -2971,6 +3101,7 @@
     lineHeightVal.textContent = fontPrefs.lh.toFixed(2);
     ta.scrollTop = Math.max(0, offsetOfChar(ta.selectionStart || 0) - rel);
     updateLineHighlight();
+    scheduleCalibrate();
     if (save) { try { localStorage.setItem('ampm.font', JSON.stringify(fontPrefs)); } catch (_) {} }
   }
   fontSizeEl.addEventListener('input', () => { fontPrefs.fs = clampNum(Number(fontSizeEl.value), FS_MIN, FS_MAX, FONT_DEF.fs); applyFont(true); });
