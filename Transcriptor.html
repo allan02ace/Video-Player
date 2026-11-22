@@ -351,12 +351,6 @@
     box-shadow: inset 3px 0 0 var(--accent);
     will-change: transform;
   }
-  /* Estimated position (by word count) rather than an exact stamp: lighter, dashed edge */
-  .line-hl.est {
-    background: color-mix(in srgb, var(--accent) 9%, transparent);
-    box-shadow: none;
-    border-left: 3px dashed color-mix(in srgb, var(--accent) 65%, transparent);
-  }
   #transcriptText {
     position: relative; z-index: 1;
     height: 100%;
@@ -507,9 +501,6 @@
     background: var(--panel); border-radius: 8px; padding: 4px 10px;
   }
   .tl-time #totalTime { font-size: 15px; font-weight: 600; color: var(--muted); }
-  /* Review mode: the clock is what you watch, so make it big with an accent frame */
-  html.reviewing .tl-time { font-size: 30px; padding: 4px 14px; box-shadow: inset 0 0 0 2px var(--accent); }
-  html.reviewing .tl-time #totalTime { font-size: 20px; }
   #currentTime { cursor: text; border-radius: 6px; }
   #currentTime:hover { box-shadow: 0 1px 0 0 var(--muted); }
   #currentTime:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -637,8 +628,6 @@
   }
   /* ── Review mode, text size ── */
   .mini-btn[aria-pressed="true"] { background: var(--accent); color: var(--acc-fg); }
-  .editor-wrap.reviewing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
-  .editor-wrap.reviewing.review-edit { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
   #transcriptText:read-only { cursor: default; }
   .editor-wrap.marking { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
   .mode-bar {
@@ -726,7 +715,6 @@
           </label>
           <button class="mini-btn" id="markBtn" type="button" aria-pressed="false" title="Mark mode (Alt+M): listen and press N when a new speaker starts, S when the same speaker continues. Each line gets the time; speakers are added afterwards with Assign.">Mark</button>
           <button class="mini-btn" id="assignBtn" type="button" aria-pressed="false" title="Assign mode (Alt+A): jump through the marked turns, hear the start of each and press 1–9 to set the speaker.">Assign</button>
-          <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): listen with the keyboard. Pausing unlocks the text and puts the cursor on the line you just heard; after you resume, the cursor follows the audio">Review</button>
           <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
           <div class="font-wrap">
             <button class="mini-btn" id="fontBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Text size and line spacing (Ctrl+wheel or Ctrl + / − / 0 in the editor also zooms)">Aa</button>
@@ -747,7 +735,7 @@
           </div>
         </div>
       </div>
-      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  G or Ctrl/⌘ + G — type a time to jump to&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + wheel, or Ctrl/⌘ + / − / 0 — zoom the text&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Alt + M — mark turns while listening (N new speaker, S same)&#10;  Alt + A — assign speakers to the marks (1–9)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  G or Ctrl/⌘ + G — type a time to jump to&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + wheel, or Ctrl/⌘ + / − / 0 — zoom the text&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + M — mark turns while listening (N new speaker, S same)&#10;  Alt + A — assign speakers to the marks (1–9)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
         <div id="tsStatus"></div>
       </div>
@@ -1004,17 +992,12 @@
     if (video.duration) seekBar.value = (video.currentTime / video.duration) * 1000;
   }
 
-  let reviewOn = false;   // review mode: listening, editor locked until the first pause
-  let reviewEdit = false; // review is on, but a pause has unlocked the editor
-  let lastTypeAt = 0;     // when the user last typed (the caret does not jump away right after)
   let markOn = false;     // Mark mode (pass 1): stamp lines while listening
   let assignOn = false;   // Assign mode (pass 2): give each marked turn a speaker
   let modePos = -1;       // start of the line Mark / Assign is waiting on
   function reviewLocked() {
     if (markOn || assignOn) { tsStatusEl.textContent = (markOn ? 'Marking' : 'Assigning') + ' — press Esc to type'; return true; }
-    if (!reviewOn || reviewEdit) return false;
-    tsStatusEl.textContent = 'Review mode — pause to edit';
-    return true;
+    return false;
   }
 
   // ── Timestamp formats ─────────────────────────────────────
@@ -1076,7 +1059,7 @@
   const MIRROR_PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant', 'fontStretch', 'fontKerning',
     'fontFeatureSettings', 'fontVariationSettings', 'fontOpticalSizing', 'lineHeight', 'letterSpacing', 'wordSpacing',
     'textTransform', 'textIndent', 'textRendering', 'tabSize', 'wordBreak', 'hyphens', 'direction'];
-  let mirrorEl = null, calDelta = 0, calLen = 0, calT = 0;
+  let mirrorEl = null, calDelta = 0, calScale = 1, calLen = 0, calT = 0;
   let offCache = new Map(), offCacheText = null, offCacheSig = '';
 
   function getMirror() {
@@ -1105,7 +1088,7 @@
     const ta = transcriptTextEl, val = ta.value;
     calLen = val.length;
     offCache.clear();
-    if (!val || ta.scrollHeight <= ta.clientHeight + 1) { calDelta = 0; return; }
+    if (!val || ta.scrollHeight <= ta.clientHeight + 1) { calDelta = 0; calScale = 1; return; }
     const cs = getComputedStyle(ta), base = textareaBoxWidth(ta, cs), m = getMirror();
     paintMirror(m, ta, cs, base);
     m.textContent = val;
@@ -1119,6 +1102,12 @@
       if (err <= 1) break;
     }
     calDelta = best;
+    // Row pitch: the mirror's fractional line height can differ from the textarea's by a hair per row, which adds up
+    // over hundreds of rows (the bar drifts below the text). Scale mirror offsets to the textarea's real content height.
+    m.style.width = (base + best) + 'px';
+    const pads = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const mc = m.getBoundingClientRect().height - pads, tc = ta.scrollHeight - pads;
+    calScale = (mc > 50 && tc > 50) ? Math.min(1.02, Math.max(0.98, tc / mc)) : 1;
     m.textContent = '';
   }
   function scheduleCalibrate() {
@@ -1189,92 +1178,49 @@
     lineHl.style.transform = `translateY(${hlDocTop - transcriptTextEl.scrollTop}px)`;
   }
 
-  // ── Where in the transcript is the audio? ────────────────
-  // A stamp only says where a *block* starts: the stamp line plus the unstamped text under it, up to the
-  // next stamp. Inside a block the position is estimated by word count: with a next stamp it is
-  // elapsed / gap x words; after the last stamp it is elapsed x the speech pace (words per second)
-  // learned from the stamped blocks above. If the user is typing inside that block, the cursor's row
-  // is the better answer and wins. Returns null while paused or when no stamp has been reached.
-  let paceKey = -1, paceVal = 2.3;
-  function wordStarts(text, from, to) {
-    const out = [], re = /\S+/g, body = text.slice(from, to);
-    let m;
-    while ((m = re.exec(body))) out.push(from + m.index);
-    return out;
-  }
-  function speechPace(text, stamps) {
-    if (paceKey === text.length) return paceVal;
-    let words = 0, secs = 0, n = 0;
-    for (let i = stamps.length - 2; i >= 0 && n < 40; i--) {
-      const gap = stamps[i + 1].time - stamps[i].time;
-      if (gap < 1 || gap > 60) continue;
-      const w = wordStarts(text, afterStampPos(stamps[i]), stamps[i + 1].start).length;
-      if (w < 2) continue;
-      words += w; secs += gap; n++;
-    }
-    paceKey = text.length;
-    paceVal = n >= 3 ? Math.min(4.5, Math.max(0.8, words / secs)) : 2.3;
-    return paceVal;
-  }
-  function playPos() {
-    if (video.paused || video.ended || !state.items[state.activeIndex]) return null;
-    const ta = transcriptTextEl, text = ta.value;
-    if (!text) return null;
-    const stamps = parseStamps(text);
-    const now = (video.currentTime || 0) + 0.25;
-    let bi = -1;
-    for (let i = 0; i < stamps.length; i++) {
-      if (stamps[i].time <= now && (bi < 0 || stamps[i].time >= stamps[bi].time)) bi = i;
-    }
-    if (bi < 0) return null;
-    const best = stamps[bi], next = stamps[bi + 1] || null;
-    const blockEnd = next ? Math.max(best.end, next.start - 1) : text.length;
-    const words = wordStarts(text, afterStampPos(best), blockEnd);
-    const pos = ta.selectionStart || 0;
-    const typing = document.activeElement === ta && pos >= best.start && pos <= blockEnd;
-    let idx = 0, est = false;
-    if (words.length) {
-      const el = Math.max(0, now - best.time);
-      const rate = next && next.time > best.time ? words.length / (next.time - best.time) : speechPace(text, stamps);
-      idx = Math.min(words.length - 1, Math.floor(el * rate));
-      est = el > 1.5 && words.length > 1;
-    }
-    return { best, blockEnd, typing, est, at: words.length ? words[idx] : best.start };
-  }
-
   function updateLineHighlight() {
     const ta = transcriptTextEl;
     if (!ta.value && document.activeElement !== ta) { lineHl.hidden = true; return; }
     syncCenterPad();
     if (Math.abs(ta.value.length - calLen) > 200) scheduleCalibrate();
-    const pp = playPos();
     const pos = ta.selectionStart || 0;
-    let start, end, row = -1, est = false;
+    let start, end;
     if ((markOn || assignOn) && modePos >= 0) {          // Mark / Assign: the line waiting for a mark
       start = modePos; end = ta.value.indexOf('\n', modePos); if (end < 0) end = ta.value.length;
-    }
-    else if (pp) {                                       // playing: one row, not the whole line
-      row = pp.typing ? pos : Math.min(pp.at + 1, ta.value.length); // typing in the block: your cursor row; else the estimated word's row
-      est = !pp.typing && pp.est;
-    }
-    else {
+    } else {                                             // the whole line the caret is on (playback parks the caret on the playing stamp line)
       start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
       end = ta.value.indexOf('\n', pos);
       if (end < 0) end = ta.value.length;
     }
     const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
-    if (row >= 0) { hlDocTop = offsetOfChar(row); lineHl.style.height = lh + 'px'; }
-    else { hlDocTop = offsetOfChar(start); lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px'; }
-    lineHl.classList.toggle('est', est);
+    hlDocTop = offsetOfChar(start);
+    lineHl.style.height = (offsetOfChar(end) - hlDocTop + lh) + 'px';
     lineHl.style.width = ta.clientWidth + 'px';
     lineHl.hidden = false;
     positionLineHighlight();
-    // centre the row that matters: the playing / typing row, else the caret row (or the bar's first row)
-    centerHighlight(row >= 0 ? hlDocTop : (document.activeElement === ta ? offsetOfChar(pos) : hlDocTop), !!pp && !pp.typing, lh);
+    // centre the caret row (or the bar's first row when the editor is not focused)
+    const typing = document.activeElement === ta;
+    centerHighlight(typing ? offsetOfChar(pos) : hlDocTop, !video.paused && !typing, lh);
   }
 
   transcriptTextEl.addEventListener('input', updateLineHighlight);
   transcriptTextEl.addEventListener('keyup', updateLineHighlight);
+  // Arrow Down always lands at the START of the next line (not the same column).
+  transcriptTextEl.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+    if (markOn || assignOn) return;
+    const ta = transcriptTextEl;
+    if (ta.readOnly) return;
+    const nl = ta.value.indexOf('\n', ta.selectionEnd);
+    if (nl < 0) return;                       // last line: normal behaviour
+    e.preventDefault();
+    const p = nl + 1;
+    ta.setSelectionRange(p, p);
+    const top = offsetOfChar(p), lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    if (top + lh > ta.scrollTop + ta.clientHeight) ta.scrollTop = top + lh - ta.clientHeight;
+    else if (top < ta.scrollTop) ta.scrollTop = top;
+    updateLineHighlight();
+  });
   transcriptTextEl.addEventListener('click', updateLineHighlight);
   transcriptTextEl.addEventListener('focus', updateLineHighlight);
   transcriptTextEl.addEventListener('blur', updateLineHighlight);
@@ -2061,7 +2007,8 @@
     const marker = document.createElement('span');
     marker.textContent = '\u200b';
     m.appendChild(marker);
-    const top = marker.offsetTop;
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const top = padT + (marker.offsetTop - padT) * calScale;
     offCache.set(index, top);
     return top;
   }
@@ -2082,31 +2029,13 @@
     lastSyncLine = best.line;
 
     const ta = transcriptTextEl;
-    const pp = playPos();                       // estimated word inside this block; null while paused
-    if (!lineChanged && !pp) return;
-    // Scroll to the stamp line when it changes (or when paused / seeking). While playing, keep the
-    // estimated row in view; never scroll away from the row the user is typing on.
-    if (!centerOn && !(pp && pp.typing)) {
-      const target = offsetOfChar(pp ? Math.min(pp.at + 1, ta.value.length) : best.start);
-      const vis = target - ta.scrollTop;
-      if (lineChanged || vis < ta.clientHeight * 0.12 || vis > ta.clientHeight * 0.75) {
-        ta.scrollTo({ top: Math.max(0, target - ta.clientHeight * 0.3), behavior: force ? 'auto' : 'smooth' });
-      }
+    if (!lineChanged) return;
+    // Scroll to the stamp line (unless centring does it, or the user is typing while it plays).
+    if (!centerOn && !(document.activeElement === ta && !video.paused)) {
+      ta.scrollTo({ top: Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3), behavior: force ? 'auto' : 'smooth' });
     }
-
-    if (lineChanged) {
-      if (reviewOn) {
-        // Review: the caret follows the audio to just after the line's timestamp, even while the
-        // editor is focused (not for 1.5 s after typing, so a word is never split between two lines).
-        if (!video.paused && performance.now() - lastTypeAt > 1500) {
-          const p = afterStampPos(best);
-          ta.setSelectionRange(p, p);
-        }
-      } else if (document.activeElement !== ta) {
-        // When not typing, park the caret at the end of that line so Pause + edit lands there.
-        ta.setSelectionRange(best.end, best.end);
-      }
-    }
+    // When not typing, park the caret at the end of that line so Pause + edit lands there.
+    if (document.activeElement !== ta) ta.setSelectionRange(best.end, best.end);
     updateLineHighlight();
   }
 
@@ -2709,7 +2638,6 @@
   function pauseAndEdit() {
     if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
     video.pause();
-    if (reviewOn) { reviewEditHere(); return; }   // review: the cursor goes to the line that was playing
     transcriptTextEl.focus();
     tsStatusEl.textContent = 'Paused — editing transcript';
   }
@@ -2790,77 +2718,6 @@
     else if (e.key === '+' || e.key === '=') tlZoomBy(1 / 1.6);
     else if (e.key === '-' || e.key === '_') tlZoomBy(1.6);
   });
-
-  // ── Review mode (Alt+R): listen straight through with the keyboard ──
-  // While listening the editor is locked (read-only), so Space / arrows only control playback.
-  // The moment you pause, the editor unlocks and the caret lands at the start of the line that
-  // was playing, just after its timestamp. It then stays editable and the caret follows the audio
-  // again when you resume. Alt+R (or the button) turns review off completely.
-  const reviewBtn = document.getElementById('reviewBtn');
-  transcriptTextEl.addEventListener('input', () => { lastTypeAt = performance.now(); });
-
-  function setReview(on, announce) {
-    if (on && (markOn || assignOn)) setMode(null);
-    reviewOn = !!on;
-    reviewEdit = false;
-    transcriptTextEl.readOnly = reviewOn;
-    editorWrap.classList.toggle('reviewing', reviewOn);
-    document.documentElement.classList.toggle('reviewing', reviewOn);
-    editorWrap.classList.remove('review-edit');
-    reviewBtn.setAttribute('aria-pressed', String(reviewOn));
-    if (reviewOn) transcriptTextEl.blur(); // so Space / arrows keep controlling playback
-    if (announce) tsStatusEl.textContent = reviewOn
-      ? 'Review: Space plays · pause to fix a line'
-      : 'Review off';
-  }
-  // Caret position at the start of a stamp line: just after the timestamp and the spaces after it.
-  function afterStampPos(st) {
-    const v = transcriptTextEl.value;
-    const ls = lineStamp(v.slice(st.start, st.end));
-    let p = st.start + (ls ? ls.index + ls.len : 0);
-    while (p < st.end && (v[p] === ' ' || v[p] === '\t')) p++;
-    return p;
-  }
-  // The stamp line for a media time (same rule as follow-playback), playing or paused.
-  function stampLineAt(t) {
-    let best = null;
-    for (const s of parseStamps(transcriptTextEl.value)) {
-      if (s.time <= t + 0.25 && (!best || s.time >= best.time)) best = s;
-    }
-    return best;
-  }
-  // Unlock the editor and put the caret on the line that was playing.
-  function reviewEditHere() {
-    if (!reviewOn) return;
-    const ta = transcriptTextEl;
-    const first = !reviewEdit;
-    reviewEdit = true;
-    ta.readOnly = false;
-    editorWrap.classList.add('review-edit');
-    if (!first && performance.now() - lastTypeAt < 1500) { updateLineHighlight(); return; } // mid-typing: leave the caret
-    const best = stampLineAt(video.currentTime || 0);
-    ta.focus();
-    if (best) {
-      const p = afterStampPos(best);
-      ta.setSelectionRange(p, p);
-      ta.scrollTo({ top: Math.max(0, offsetOfChar(best.start) - ta.clientHeight * 0.3), behavior: 'auto' });
-      lastSyncLine = best.line;
-    }
-    updateLineHighlight();
-    tsStatusEl.textContent = best
-      ? `Paused at ${fmtTime(best.time)} — edit, Shift+Space to resume`
-      : 'Paused — edit, Shift+Space to resume';
-  }
-  reviewBtn.addEventListener('click', () => setReview(!reviewOn, true));
-  video.addEventListener('pause', () => {
-    if (reviewOn && !video.ended && video.readyState > 0 && state.items[state.activeIndex]) reviewEditHere();
-  });
-  // Capture phase so Alt+R wins over the global handler, also while the editor has focus.
-  document.addEventListener('keydown', e => {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyR') {
-      e.preventDefault(); e.stopImmediatePropagation(); setReview(!reviewOn, true);
-    }
-  }, true);
 
   // ── Mark and Assign: turns first, speakers after ──────────
   // Pass 1, Mark (Alt+M): listen, and press N when a new speaker starts or S when the same speaker
@@ -3047,7 +2904,6 @@
         tsStatusEl.textContent = mode === 'mark' ? 'Every line already has a timestamp' : 'No speaker slots yet — use Mark first (Alt+M)';
         return;
       }
-      if (reviewOn) setReview(false);
       markOn = mode === 'mark'; assignOn = mode === 'assign';
       markHist = []; assignHist = []; assignStopAt = 0;
       modePos = pos;
@@ -3059,7 +2915,7 @@
       modePos = -1;
     }
     const on = markOn || assignOn;
-    ta.readOnly = on || reviewOn;
+    ta.readOnly = on;
     editorWrap.classList.toggle('marking', on);
     markBtn.setAttribute('aria-pressed', String(markOn));
     assignBtn.setAttribute('aria-pressed', String(assignOn));
