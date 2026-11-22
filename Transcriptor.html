@@ -475,6 +475,12 @@
     background: var(--panel); color: var(--ink); font: inherit; font-size: 11px; padding: 0 6px;
   }
   .loop-row select:disabled { opacity: .5; }
+  .loop-row .loop-in {
+    height: 26px; width: 74px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--ink); font: inherit; font-size: 11px; padding: 0 6px; text-align: center;
+  }
+  .loop-row .loop-in:disabled { opacity: .5; }
+  .loop-row .loop-in.bad { border-color: #dc2626; }
   .loop-band {
     position: absolute; bottom: 0; height: 3px; border-radius: 2px;
     background: var(--accent); opacity: .85; pointer-events: none;
@@ -498,6 +504,15 @@
   /* Review mode: the clock is what you watch, so make it big with an accent frame */
   html.reviewing .tl-time { font-size: 30px; padding: 4px 14px; box-shadow: inset 0 0 0 2px var(--accent); }
   html.reviewing .tl-time #totalTime { font-size: 20px; }
+  #currentTime { cursor: text; border-radius: 6px; }
+  #currentTime:hover { box-shadow: 0 1px 0 0 var(--muted); }
+  #currentTime:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .time-edit {
+    font: inherit; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--bg);
+    border: 0; border-radius: 6px; padding: 0 4px; margin: -1px 0; width: 7.6ch; text-align: center;
+    outline: 2px solid var(--accent);
+  }
+  .time-edit.bad { outline-color: #dc2626; }
   .tl-sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
   .tl-title { font-weight: 700; color: var(--ink); margin-right: 2px; }
   .tl-btn {
@@ -619,6 +634,20 @@
   .editor-wrap.reviewing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   .editor-wrap.reviewing.review-edit { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
   #transcriptText:read-only { cursor: default; }
+  .editor-wrap.marking { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .mode-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0;
+    padding: 6px 14px; font-size: 12px; color: var(--ink);
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border-bottom: 1px solid var(--line);
+  }
+  .mode-bar[hidden] { display: none; }
+  .mode-bar b { color: var(--accent); }
+  .mode-bar kbd { font: inherit; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: var(--chip); border: 1px solid var(--line); }
+  .mode-bar .mb-hint { flex: 1; min-width: 220px; }
+  .mode-bar .mb-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mode-bar label { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+  .mode-bar input { width: 46px; height: 24px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); font: inherit; padding: 0 4px; text-align: center; }
+  .mode-bar button { height: 26px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--acc-fg); font: inherit; font-weight: 700; cursor: pointer; }
   #transcriptText { touch-action: pan-x pan-y; } /* pinch zooms the text (see zoomText), not the page */
   html, body { touch-action: pan-x pan-y; }      /* no pinch / double-tap zoom of the whole app */
   .font-wrap { position: relative; }
@@ -688,6 +717,8 @@
             <input id="rewindInput" type="number" min="0" max="10" step="1" value="2">
             s
           </label>
+          <button class="mini-btn" id="markBtn" type="button" aria-pressed="false" title="Mark mode (Alt+M): listen and press N when a new speaker starts, S when the same speaker continues. Each line gets the time; speakers are added afterwards with Assign.">Mark</button>
+          <button class="mini-btn" id="assignBtn" type="button" aria-pressed="false" title="Assign mode (Alt+A): jump through the marked turns, hear the start of each and press 1–9 to set the speaker.">Assign</button>
           <button class="mini-btn" id="reviewBtn" type="button" aria-pressed="false" title="Review mode (Alt+R): listen with the keyboard. Pausing unlocks the text and puts the cursor on the line you just heard; after you resume, the cursor follows the audio">Review</button>
           <button class="mini-btn primary" id="pauseEditBtn" type="button">Pause + edit</button>
           <div class="font-wrap">
@@ -708,7 +739,7 @@
           </div>
         </div>
       </div>
-      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + wheel, or Ctrl/⌘ + / − / 0 — zoom the text&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
+      <textarea id="transcriptText" placeholder="Paste or type your transcript here.&#10;&#10;Shortcuts:&#10;  Shift + Space — play/pause&#10;  Ctrl/⌘ + Enter — insert timestamp&#10;  [ / ] — skip back/forward&#10;  G or Ctrl/⌘ + G — type a time to jump to&#10;  Ctrl/⌘ + S — export as .txt&#10;  Ctrl/⌘ + wheel, or Ctrl/⌘ + / − / 0 — zoom the text&#10;  Ctrl/⌘ + F — find, Ctrl/⌘ + H — find &amp; replace&#10;  F2 / F4 — insert [inaudible] / [crosstalk] marker&#10;  Alt + ↑ / ↓ — playback speed&#10;  Alt + R — review mode (pause = edit that line)&#10;  Alt + M — mark turns while listening (N new speaker, S same)&#10;  Alt + A — assign speakers to the marks (1–9)&#10;  Esc — leave the editor (then Space/arrows control playback)"></textarea>
       <div class="transcript-footer">
         <div id="tsStatus"></div>
       </div>
@@ -724,9 +755,10 @@
           <button class="add-file-btn" id="addFileBtnBar" type="button" title="Add video/audio file"><span aria-hidden="true">＋</span> Add</button>
           <div class="video-title" id="videoTitle">—</div>
           <div class="loop-row" id="loopRow">
-            <button class="loop-btn" id="loopBtn" type="button" aria-pressed="false" title="Loop between two timestamps (L)">⟲ Loop</button>
-            <label>From <select id="loopA" aria-label="Loop start timestamp" disabled></select></label>
-            <label>to <select id="loopB" aria-label="Loop end timestamp" disabled></select></label>
+            <button class="loop-btn" id="loopBtn" type="button" aria-pressed="false" title="Loop between two times (L)">⟲ Loop</button>
+            <label>From <input class="loop-in" id="loopA" type="text" list="loopAList" placeholder="0:00" autocomplete="off" spellcheck="false" aria-label="Loop start time: type h:mm:ss, m:ss or seconds, or pick a timestamp" title="Type a time (1:20, 1:02:03, 80, 1:20.5) or pick a timestamp" disabled></label>
+            <label>to <input class="loop-in" id="loopB" type="text" list="loopBList" placeholder="end" autocomplete="off" spellcheck="false" aria-label="Loop end time: type h:mm:ss, m:ss or seconds, or end" title="Type a time (1:35, 95, +10) or end" disabled></label>
+            <datalist id="loopAList"></datalist><datalist id="loopBList"></datalist>
           </div>
         </div>
         <!-- Seek bar is no longer shown: the timeline below does the seeking and shows the timestamp flags.
@@ -738,7 +770,7 @@
         <div class="tl-row" id="tlRow">
           <div class="tl-head">
             <button class="control-btn play" id="playBtn" title="Play/Pause" type="button">▶</button>
-            <span class="tl-time"><span id="currentTime">0:00</span> / <span id="totalTime">0:00</span></span>
+            <span class="tl-time"><span id="currentTime" tabindex="0" role="button" title="Click (or press G) and type a time to jump there: 1:56:48, 56:48, 90 or +30" aria-label="Current time. Activate to type a time and jump there.">0:00</span> / <span id="totalTime">0:00</span></span>
             <button class="last-stamp-btn" id="lastStampBtn" type="button" disabled title="Jump to the last timestamp in the transcript">⇥ Last</button>
             <label class="boost" title="Volume boost (up to 300%)">
               <span aria-hidden="true">🔊</span>
@@ -967,7 +999,11 @@
   let reviewOn = false;   // review mode: listening, editor locked until the first pause
   let reviewEdit = false; // review is on, but a pause has unlocked the editor
   let lastTypeAt = 0;     // when the user last typed (the caret does not jump away right after)
+  let markOn = false;     // Mark mode (pass 1): stamp lines while listening
+  let assignOn = false;   // Assign mode (pass 2): give each marked turn a speaker
+  let modePos = -1;       // start of the line Mark / Assign is waiting on
   function reviewLocked() {
+    if (markOn || assignOn) { tsStatusEl.textContent = (markOn ? 'Marking' : 'Assigning') + ' — press Esc to type'; return true; }
     if (!reviewOn || reviewEdit) return false;
     tsStatusEl.textContent = 'Review mode — pause to edit';
     return true;
@@ -1045,7 +1081,10 @@
     const pl = playingLine();
     const pos = ta.selectionStart || 0;
     let start, end;
-    if (pl) { start = pl.start; end = pl.end; }          // playing line wins over the caret line
+    if ((markOn || assignOn) && modePos >= 0) {          // Mark / Assign: the line waiting for a mark
+      start = modePos; end = ta.value.indexOf('\n', modePos); if (end < 0) end = ta.value.length;
+    }
+    else if (pl) { start = pl.start; end = pl.end; }     // playing line wins over the caret line
     else {
       start = pos === 0 ? 0 : ta.value.lastIndexOf('\n', pos - 1) + 1;
       end = ta.value.indexOf('\n', pos);
@@ -1855,6 +1894,7 @@
   }
 
   function syncTranscriptToTime(force) {
+    if (markOn || assignOn) return;
     if (!state.items[state.activeIndex]) return;
     if (performance.now() < suppressSyncUntil) return;
     const stamps = parseStamps(transcriptTextEl.value);
@@ -1998,29 +2038,59 @@
 
   function loopEndTime() { return loop.b === Infinity ? (video.duration || 0) : loop.b; }
 
+  // Typed times: h:mm:ss, m:ss, plain seconds (decimals allowed), 1h2m3s, or +/- from the playhead.
+  // The To box also takes "end". The transcript's timestamps are offered as suggestions.
+  let loopTimes = [];       // timestamps from the transcript, sorted
+  let loopFileKey = null;   // the file the loop belongs to
+  function fmtLoop(t) {
+    const base = fmtTime(t), frac = t - Math.floor(t);
+    return frac < 0.005 ? base : base + '.' + String(Math.min(99, Math.round(frac * 100))).padStart(2, '0');
+  }
+  // null = empty, NaN = not a time, Infinity = end (To box only)
+  function parseLoopField(raw, isEnd) {
+    const s = String(raw).trim().toLowerCase();
+    if (!s) return null;
+    if (isEnd && /^(end|end of file|eof)$/.test(s)) return Infinity;
+    const t = parseTimeInput(s, video.currentTime || 0, video.duration);
+    return t === null ? NaN : t;
+  }
+
   function refreshLoopOptions(stamps) {
-    const times = [...new Set(stamps.map(s => s.time))].sort((x, y) => x - y);
-    const prevA = loopASel.value, prevB = loopBSel.value;
-    loopASel.textContent = ''; loopBSel.textContent = '';
-    times.forEach(t => {
-      const oa = document.createElement('option'); oa.value = String(t); oa.textContent = fmtTime(t); loopASel.appendChild(oa);
-      const ob = document.createElement('option'); ob.value = String(t); ob.textContent = fmtTime(t); loopBSel.appendChild(ob);
+    loopTimes = [...new Set(stamps.map(s => s.time))].sort((x, y) => x - y);
+    const listA = document.getElementById('loopAList'), listB = document.getElementById('loopBList');
+    listA.textContent = ''; listB.textContent = '';
+    loopTimes.forEach(t => {
+      const oa = document.createElement('option'); oa.value = fmtTime(t); listA.appendChild(oa);
+      const ob = document.createElement('option'); ob.value = fmtTime(t); listB.appendChild(ob);
     });
-    const oe = document.createElement('option'); oe.value = LOOP_END; oe.textContent = 'End of file'; loopBSel.appendChild(oe);
-    // keep earlier choices if they still exist
-    if (prevA && [...loopASel.options].some(o => o.value === prevA)) loopASel.value = prevA;
-    if (prevB && [...loopBSel.options].some(o => o.value === prevB)) loopBSel.value = prevB;
-    const usable = times.length > 0 && !!state.items[state.activeIndex];
+    const oe = document.createElement('option'); oe.value = LOOP_END; oe.label = 'End of file'; listB.appendChild(oe);
+    const item = state.items[state.activeIndex];
+    const key = item ? item.key : null;
+    if (key !== loopFileKey) {            // another file: the old loop times do not belong to it
+      loopFileKey = key;
+      if (loop.on) setLoop(false);
+      loopASel.value = ''; loopBSel.value = '';
+      loopASel.classList.remove('bad'); loopBSel.classList.remove('bad');
+    }
+    const usable = !!item;
     loopASel.disabled = loopBSel.disabled = !usable;
     loopBtn.disabled = !usable;
     if (!usable && loop.on) setLoop(false);
-    readLoopSelects();
+    if (document.activeElement !== loopASel && document.activeElement !== loopBSel) readLoopSelects();
   }
 
   function readLoopSelects() {
-    loop.a = loopASel.value === '' ? null : Number(loopASel.value);
-    loop.b = loopBSel.value === '' ? null : (loopBSel.value === LOOP_END ? Infinity : Number(loopBSel.value));
+    const a = parseLoopField(loopASel.value, false), b = parseLoopField(loopBSel.value, true);
+    loopASel.classList.toggle('bad', Number.isNaN(a));
+    loopBSel.classList.toggle('bad', Number.isNaN(b));
+    loop.a = (a === null || Number.isNaN(a)) ? null : a;
+    loop.b = (b === null || Number.isNaN(b)) ? null : b;
     updateLoopBand();
+  }
+  // show what was understood (also turns +30 into a fixed time)
+  function normalizeLoopBoxes() {
+    if (loop.a != null) loopASel.value = fmtLoop(loop.a);
+    if (loop.b != null) loopBSel.value = loop.b === Infinity ? LOOP_END : fmtLoop(loop.b);
   }
 
   function updateLoopBand() {
@@ -2048,27 +2118,37 @@
 
   function setLoop(on) {
     if (on) {
-      if (!state.items[state.activeIndex] || loopASel.disabled) { tsStatusEl.textContent = 'Add timestamps to the transcript first'; return; }
+      if (!state.items[state.activeIndex] || loopASel.disabled) { tsStatusEl.textContent = 'Add a file first'; return; }
       readLoopSelects();
-      // First use (or an invalid range): start at the timestamp just behind the playhead, end at the next one.
       if (loop.a == null || loop.b == null || loopEndTime() <= loop.a) {
-        const times = [...loopASel.options].map(o => Number(o.value));
-        const now = video.currentTime || 0;
-        let a = times[0];
-        for (const t of times) if (t <= now + 0.25) a = t;
-        const next = times.find(t => t > a);
-        loopASel.value = String(a);
-        loopBSel.value = next != null ? String(next) : LOOP_END;
-        readLoopSelects();
-        if (loopEndTime() <= loop.a) { tsStatusEl.textContent = 'Pick an end point after the start'; return; }
+        const bothEmpty = !loopASel.value.trim() && !loopBSel.value.trim();
+        if (loopTimes.length && bothEmpty) {
+          // Nothing typed: start at the timestamp just behind the playhead, end at the next one.
+          const now = video.currentTime || 0;
+          let a = loopTimes[0];
+          for (const t of loopTimes) if (t <= now + 0.25) a = t;
+          const next = loopTimes.find(t => t > a);
+          loopASel.value = fmtTime(a);
+          loopBSel.value = next != null ? fmtTime(next) : LOOP_END;
+          readLoopSelects();
+        }
+        if (loop.a == null || loop.b == null || loopEndTime() <= loop.a) {
+          const badBox = loop.a == null ? loopASel : loopBSel;
+          tsStatusEl.textContent = loop.a != null && loop.b != null
+            ? 'The end must be after the start'
+            : 'Type a start and an end time, like 1:20 and 1:35';
+          badBox.focus(); badBox.select();
+          return;
+        }
       }
+      normalizeLoopBoxes();
     }
     loop.on = on;
     loopBtn.setAttribute('aria-pressed', String(on));
     loopBtn.textContent = on ? '⟲ Looping' : '⟲ Loop';
     updateLoopBand();
     if (on) {
-      tsStatusEl.textContent = `Looping [${fmtTime(loop.a)}] → ${loop.b === Infinity ? 'end' : '[' + fmtTime(loop.b) + ']'}`;
+      tsStatusEl.textContent = `Looping [${fmtLoop(loop.a)}] → ${loop.b === Infinity ? 'end' : '[' + fmtLoop(loop.b) + ']'}`;
       const end = loopEndTime();
       if (video.currentTime < loop.a || video.currentTime >= end) video.currentTime = loop.a;
       startLoopTick();
@@ -2076,8 +2156,13 @@
   }
 
   loopBtn.addEventListener('click', () => setLoop(!loop.on));
+  [loopASel, loopBSel].forEach(sel => sel.addEventListener('keydown', e => {
+    e.stopPropagation();                                   // typing a time must not trigger playback shortcuts
+    if (e.key === 'Enter') { e.preventDefault(); sel.blur(); }
+  }));
   [loopASel, loopBSel].forEach(sel => sel.addEventListener('change', () => {
     readLoopSelects();
+    normalizeLoopBoxes();
     if (loop.on) {
       if (loopEndTime() <= loop.a) { setLoop(false); tsStatusEl.textContent = 'Loop off: end must be after start'; return; }
       video.currentTime = loop.a;
@@ -2531,6 +2616,7 @@
   transcriptTextEl.addEventListener('input', () => { lastTypeAt = performance.now(); });
 
   function setReview(on, announce) {
+    if (on && (markOn || assignOn)) setMode(null);
     reviewOn = !!on;
     reviewEdit = false;
     transcriptTextEl.readOnly = reviewOn;
@@ -2590,6 +2676,269 @@
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyR') {
       e.preventDefault(); e.stopImmediatePropagation(); setReview(!reviewOn, true);
     }
+  }, true);
+
+  // ── Mark and Assign: turns first, speakers after ──────────
+  // Pass 1, Mark (Alt+M): listen, and press N when a new speaker starts or S when the same speaker
+  // carries on. The highlighted line gets the time (a little early, to cover reaction time) and, for N,
+  // an empty speaker slot "[?]: ". Backspace undoes, R replays 3 s, Esc finishes.
+  // Pass 2, Assign (Alt+A): jumps from slot to slot, plays the start of that turn, and 1-9 (or Alt+1-9)
+  // fills in the speaker, then moves on. The text is read-only in both modes, so plain keys are free.
+  const MARK_SLOT = '[?]: ';
+  const SLOT_RE = new RegExp('^(\\s*(?:' + STAMP_PREFIX + '\\s*)?)\\[\\?\\]:\\s?');
+  const LABELED_RE = /^[A-ZÑ][A-ZÑ0-9 .'\-]{0,35}[A-ZÑ0-9.]:\s|^[A-ZÑ]{2}:\s/;
+  const markBtn = document.getElementById('markBtn');
+  const assignBtn = document.getElementById('assignBtn');
+  let markLead = 0.4, assignClip = 4;
+  try {
+    const l = Number(localStorage.getItem('ampm.markLead')); if (Number.isFinite(l) && l >= 0 && l <= 3) markLead = l;
+    const c = Number(localStorage.getItem('ampm.assignClip')); if (Number.isFinite(c) && c >= 1 && c <= 15) assignClip = c;
+  } catch (_) {}
+  const modeBar = document.createElement('div');
+  modeBar.className = 'mode-bar';
+  modeBar.hidden = true;
+  editorWrap.parentNode.insertBefore(modeBar, editorWrap);
+  let markHist = [], assignHist = [], assignStopAt = 0;
+
+  function lineBounds(pos) {
+    const v = transcriptTextEl.value;
+    const s = pos <= 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1;
+    let e = v.indexOf('\n', pos);
+    if (e < 0) e = v.length;
+    return [s, e];
+  }
+  // first line starting at or after "from" (a line start) that satisfies test(line); -1 if none
+  function findLine(from, test) {
+    const v = transcriptTextEl.value;
+    let p = from;
+    while (p >= 0 && p <= v.length) {
+      let e = v.indexOf('\n', p); if (e < 0) e = v.length;
+      if (test(v.slice(p, e))) return p;
+      if (e >= v.length) break;
+      p = e + 1;
+    }
+    return -1;
+  }
+  const markable = line => line.trim() !== '' && !lineStamp(line);
+  const hasSlot = line => SLOT_RE.test(line);
+  function lastSlotBefore(pos) {
+    const v = transcriptTextEl.value;
+    let best = -1, p = 0;
+    while (p < pos && p <= v.length) {
+      let e = v.indexOf('\n', p); if (e < 0) e = v.length;
+      if (hasSlot(v.slice(p, e))) best = p;
+      if (e >= v.length) break;
+      p = e + 1;
+    }
+    return best;
+  }
+  function counts() {
+    let total = 0, done = 0, slots = 0;
+    for (const l of transcriptTextEl.value.split('\n')) {
+      if (!l.trim()) continue;
+      total++;
+      if (lineStamp(l)) done++;
+      if (hasSlot(l)) slots++;
+    }
+    return { total, done, slots };
+  }
+  function updateModeBar() {
+    const el = document.getElementById('mbCount');
+    if (!el) return;
+    const c = counts();
+    el.textContent = markOn ? `${c.done} of ${c.total} lines marked` : `${c.slots} to assign`;
+  }
+  function setText(from, to, text) {
+    const ta = transcriptTextEl;
+    ta.setRangeText(text, from, to, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));   // autosave, timeline markers, counts
+  }
+  function moveTarget(pos) {
+    const ta = transcriptTextEl;
+    modePos = pos;
+    ta.setSelectionRange(pos, pos);
+    const top = offsetOfChar(pos);
+    if (top < ta.scrollTop + 10 || top > ta.scrollTop + ta.clientHeight - 90) {
+      ta.scrollTo({ top: Math.max(0, top - ta.clientHeight * 0.3), behavior: 'auto' });
+    }
+    updateLineHighlight();
+    updateModeBar();
+  }
+
+  // Pass 1
+  function markApply(isNew) {
+    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
+    const v = transcriptTextEl.value;
+    let [s, e] = lineBounds(Math.max(0, modePos));
+    if (!markable(v.slice(s, e))) {                          // text changed under us: take the next open line
+      const p = findLine(s, markable);
+      if (p < 0) { setMode(null, true); return; }
+      [s, e] = lineBounds(p);
+    }
+    const line = v.slice(s, e);
+    const body = line.replace(/^\s+/, '');
+    const labeled = LABELED_RE.test(body) || speakers.filter(Boolean).some(n => body.startsWith(n + ':'));
+    const t = Math.max(0, (video.currentTime || 0) - markLead);
+    const now = `[${fmtTime(t)}] ` + (isNew && !labeled ? MARK_SLOT : '') + body;
+    setText(s, e, now);
+    markHist.push({ start: s, old: line, now });
+    const next = findLine(s + now.length + 1, markable);
+    if (next < 0) { setMode(null, true); tsStatusEl.textContent = 'Every line is marked — click Assign to add the speakers'; return; }
+    moveTarget(next);
+    tsStatusEl.textContent = (isNew ? 'New speaker' : 'Same speaker') + ` at ${fmtTime(t)}`;
+  }
+  function markUndo() {
+    const h = markHist.pop();
+    if (!h) { tsStatusEl.textContent = 'Nothing to undo'; return; }
+    if (transcriptTextEl.value.slice(h.start, h.start + h.now.length) !== h.now) { tsStatusEl.textContent = 'That line was edited — undo skipped'; return; }
+    setText(h.start, h.start + h.now.length, h.old);
+    moveTarget(h.start);
+    tsStatusEl.textContent = 'Undid the last mark';
+  }
+
+  // Pass 2
+  function slotTime(pos) {
+    const [s, e] = lineBounds(pos);
+    const st = lineStamp(transcriptTextEl.value.slice(s, e));
+    return st ? st.time : null;
+  }
+  function assignPlayClip(pos) {
+    const t = slotTime(pos);
+    if (t == null || !state.items[state.activeIndex]) return;
+    video.currentTime = t;
+    assignStopAt = t + assignClip;
+    video.play().catch(() => {});
+  }
+  function assignGo(pos) { moveTarget(pos); assignPlayClip(pos); }
+  function assignFinish() {
+    setMode(null, true);
+    tsStatusEl.textContent = 'All speakers assigned';
+  }
+  function assignSpeaker(slot) {
+    const name = speakers[slot];
+    if (!name) { tsStatusEl.textContent = `Speaker ${slot + 1} is empty — add one first`; return; }
+    const v = transcriptTextEl.value;
+    const [s, e] = lineBounds(Math.max(0, modePos));
+    const line = v.slice(s, e), m = line.match(SLOT_RE);
+    if (!m) {                                                // not on a slot any more: go to the next one
+      const n = findLine(s, hasSlot);
+      if (n < 0) assignFinish(); else assignGo(n);
+      return;
+    }
+    const now = m[1] + name + ': ' + line.slice(m[0].length);
+    setText(s, e, now);
+    assignHist.push({ start: s, old: line, now });
+    const next = findLine(s + now.length + 1, hasSlot);
+    tsStatusEl.textContent = `Speaker ${slot + 1}: ${name}`;
+    if (next < 0) { assignFinish(); return; }
+    assignGo(next);
+  }
+  function assignUndo() {
+    const h = assignHist.pop();
+    if (!h) { tsStatusEl.textContent = 'Nothing to undo'; return; }
+    if (transcriptTextEl.value.slice(h.start, h.start + h.now.length) !== h.now) { tsStatusEl.textContent = 'That line was edited — undo skipped'; return; }
+    setText(h.start, h.start + h.now.length, h.old);
+    assignGo(h.start);
+  }
+  function assignStep(dir) {
+    const [s, e] = lineBounds(Math.max(0, modePos));
+    const p = dir > 0 ? findLine(e + 1, hasSlot) : lastSlotBefore(s);
+    if (p < 0) { tsStatusEl.textContent = dir > 0 ? 'That was the last one' : 'That is the first one'; return; }
+    assignGo(p);
+  }
+  video.addEventListener('timeupdate', () => {
+    if (assignOn && assignStopAt && video.currentTime >= assignStopAt) { assignStopAt = 0; video.pause(); }
+  });
+
+  // Turning the modes on and off
+  function setMode(mode, announce) {
+    const ta = transcriptTextEl;
+    if (mode) {
+      if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Load a file first'; return; }
+      const caretLine = lineBounds(ta.selectionStart || 0)[0];
+      const test = mode === 'mark' ? markable : hasSlot;
+      let pos = findLine(caretLine, test);
+      if (pos < 0) pos = findLine(0, test);
+      if (pos < 0) {
+        tsStatusEl.textContent = mode === 'mark' ? 'Every line already has a timestamp' : 'No speaker slots yet — use Mark first (Alt+M)';
+        return;
+      }
+      if (reviewOn) setReview(false);
+      markOn = mode === 'mark'; assignOn = mode === 'assign';
+      markHist = []; assignHist = []; assignStopAt = 0;
+      modePos = pos;
+      ta.blur();                                            // so Space and arrows keep controlling playback
+    } else {
+      const was = modePos;
+      markOn = false; assignOn = false; assignStopAt = 0;
+      if (announce && was >= 0) { ta.focus(); ta.setSelectionRange(was, was); }
+      modePos = -1;
+    }
+    const on = markOn || assignOn;
+    ta.readOnly = on || reviewOn;
+    editorWrap.classList.toggle('marking', on);
+    markBtn.setAttribute('aria-pressed', String(markOn));
+    assignBtn.setAttribute('aria-pressed', String(assignOn));
+    modeBar.hidden = !on;
+    if (on) {
+      modeBar.innerHTML = markOn
+        ? '<span class="mb-hint"><b>Marking</b> · <kbd>N</kbd> new speaker · <kbd>S</kbd> same speaker · <kbd>Backspace</kbd> undo · <kbd>R</kbd> replay 3 s · <kbd>Esc</kbd> done</span>' +
+          '<span class="mb-count" id="mbCount"></span><label>Lead <input id="mbNum" type="number" min="0" max="3" step="0.1" aria-label="Seconds to stamp early"> s</label><button type="button" id="mbDone">Done</button>'
+        : '<span class="mb-hint"><b>Assigning</b> · press <kbd>1</kbd>–<kbd>9</kbd> for the speaker · <kbd>N</kbd> skip · <kbd>↑</kbd> back · <kbd>R</kbd> replay · <kbd>Backspace</kbd> undo · <kbd>Esc</kbd> done</span>' +
+          '<span class="mb-count" id="mbCount"></span><label>Clip <input id="mbNum" type="number" min="1" max="15" step="1" aria-label="Seconds to play for each turn"> s</label><button type="button" id="mbDone">Done</button>';
+      const num = document.getElementById('mbNum');
+      num.value = markOn ? markLead : assignClip;
+      num.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') num.blur(); });
+      num.addEventListener('change', () => {
+        const x = Number(num.value);
+        if (markOn && Number.isFinite(x) && x >= 0 && x <= 3) { markLead = x; try { localStorage.setItem('ampm.markLead', String(x)); } catch (_) {} }
+        else if (assignOn && Number.isFinite(x) && x >= 1 && x <= 15) { assignClip = Math.round(x); try { localStorage.setItem('ampm.assignClip', String(assignClip)); } catch (_) {} }
+        else num.value = markOn ? markLead : assignClip;
+      });
+      document.getElementById('mbDone').addEventListener('click', () => setMode(null, true));
+      moveTarget(modePos);
+      if (assignOn) assignPlayClip(modePos);
+      tsStatusEl.textContent = markOn ? 'Marking: press N / S as each line starts' : 'Assigning: press 1–9 for the speaker';
+    } else {
+      updateLineHighlight();
+      if (announce && !/^(Every line|All speakers)/.test(tsStatusEl.textContent)) tsStatusEl.textContent = 'Done';
+    }
+  }
+  markBtn.addEventListener('click', () => setMode(markOn ? null : 'mark', true));
+  assignBtn.addEventListener('click', () => setMode(assignOn ? null : 'assign', true));
+  transcriptTextEl.addEventListener('focus', () => { if (markOn || assignOn) transcriptTextEl.blur(); });
+  video.addEventListener('emptied', () => { if (markOn || assignOn) setMode(null); });
+  // Capture phase so these keys win over the global shortcuts.
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey) return;
+    if (e.altKey && !e.shiftKey && (e.code === 'KeyM' || e.code === 'KeyA')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.code === 'KeyM') setMode(markOn ? null : 'mark', true); else setMode(assignOn ? null : 'assign', true);
+      return;
+    }
+    if (!markOn && !assignOn) return;
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT') return;
+    const k = e.key.toLowerCase();
+    const digit = /^(Digit|Numpad)[1-9]$/.test(e.code) ? Number(e.code.slice(-1)) : 0;
+    let handled = true;
+    if (e.key === 'Escape') setMode(null, true);
+    else if (markOn && !e.altKey) {
+      if (k === 'n') markApply(true);
+      else if (k === 's') markApply(false);
+      else if (e.key === 'Backspace') markUndo();
+      else if (k === 'r') video.currentTime = Math.max(0, (video.currentTime || 0) - 3);
+      else handled = false;
+    } else if (assignOn) {
+      if (digit && !e.shiftKey) assignSpeaker(digit - 1);
+      else if (e.altKey) handled = false;
+      else if (k === 'n' && !e.shiftKey || e.key === 'ArrowDown') assignStep(1);
+      else if (k === 'n' && e.shiftKey || e.key === 'ArrowUp') assignStep(-1);
+      else if (k === 'r') assignPlayClip(modePos);
+      else if (e.key === 'Backspace') assignUndo();
+      else handled = false;
+    } else handled = false;
+    if (handled) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
 
   // ── Text size and line spacing (Aa button) ────────────────
@@ -2841,6 +3190,74 @@
     }
     tsStatusEl.textContent = 'Restored ' + recs.length + (recs.length === 1 ? ' file' : ' files') + ' saved on this device';
   }).catch(() => {});
+
+  // ── Type a time to jump (click the clock, or press G / Ctrl+G) ──
+  // Accepts h:mm:ss, m:ss, plain seconds, 1h2m3s, and +/- offsets from now (+30, -1:00).
+  function parseTimeInput(raw, now, dur) {
+    let s = String(raw).trim().toLowerCase().replace(/\s+/g, '');
+    if (!s) return null;
+    let rel = 0;
+    if (s[0] === '+' || s[0] === '-' || s[0] === '−') { rel = s[0] === '+' ? 1 : -1; s = s.slice(1); }
+    let sec = null, m;
+    if (s.includes(':')) {
+      const parts = s.split(':');
+      if (parts.length < 2 || parts.length > 3 || !parts.every(x => /^\d+(\.\d+)?$/.test(x))) return null;
+      const n = parts.map(Number);
+      if (n.length === 3) { if (n[1] >= 60 || n[2] >= 60) return null; sec = n[0] * 3600 + n[1] * 60 + n[2]; }
+      else { if (n[1] >= 60) return null; sec = n[0] * 60 + n[1]; }
+    } else if (/^\d+(\.\d+)?$/.test(s)) {
+      sec = Number(s);
+    } else if ((m = s.match(/^(?:(\d+)h)?(?:(\d+)m(?:in)?)?(?:(\d+(?:\.\d+)?)s(?:ec)?)?$/)) && (m[1] || m[2] || m[3])) {
+      sec = (Number(m[1]) || 0) * 3600 + (Number(m[2]) || 0) * 60 + (Number(m[3]) || 0);
+    } else return null;
+    let t = rel ? now + rel * sec : sec;
+    if (!Number.isFinite(t)) return null;
+    t = Math.max(0, t);
+    if (Number.isFinite(dur) && dur > 0) t = Math.min(t, dur);
+    return t;
+  }
+  let timeEditing = false;
+  function openTimeEdit() {
+    if (timeEditing) return;
+    if (!state.items[state.activeIndex]) { tsStatusEl.textContent = 'Add a file first, then type a time to jump to'; return; }
+    timeEditing = true;
+    const prev = document.activeElement;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'time-edit'; inp.spellcheck = false; inp.autocomplete = 'off';
+    inp.value = fmtTime(video.currentTime || 0);
+    inp.setAttribute('aria-label', 'Go to time: h:mm:ss, m:ss, seconds, or + / − offset');
+    currentTimeEl.hidden = true;
+    currentTimeEl.after(inp);
+    inp.focus(); inp.select();
+    let closed = false;
+    function close(restoreFocus) {
+      if (closed) return;
+      closed = true;
+      inp.remove(); currentTimeEl.hidden = false; timeEditing = false;
+      if (restoreFocus && prev && prev !== currentTimeEl && prev !== document.body && prev.focus) prev.focus({ preventScroll: true });
+    }
+    inp.addEventListener('keydown', e => {
+      e.stopPropagation();                                  // typing here must not trigger playback shortcuts
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const t = parseTimeInput(inp.value, video.currentTime || 0, video.duration);
+        if (t === null) { inp.classList.add('bad'); tsStatusEl.textContent = 'Type a time like 1:56:48, 56:48, 90 or +30'; return; }
+        video.currentTime = t;
+        close(true);
+        tsStatusEl.textContent = 'Jumped to ' + fmtTime(t);
+      } else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+      else inp.classList.remove('bad');
+    });
+    inp.addEventListener('blur', () => setTimeout(() => close(false), 0));
+  }
+  currentTimeEl.addEventListener('click', openTimeEdit);
+  currentTimeEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openTimeEdit(); } });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'g' && e.key !== 'G') return;
+    const t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) { e.preventDefault(); openTimeEdit(); }
+    else if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openTimeEdit(); }
+  });
 
   // ── Init ──────────────────────────────────────────────────
   normalizeSkip();

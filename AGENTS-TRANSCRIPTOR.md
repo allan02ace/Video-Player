@@ -51,11 +51,13 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 - Shift+Space: play/pause (works inside the transcript too)
 - Ctrl/Cmd+Enter: insert timestamp
+- G (outside text fields) or Ctrl/Cmd+G: type a time to jump to (click the clock does the same)
 - Ctrl/Cmd+S: export as .txt
 - Ctrl/Cmd + wheel, or Ctrl/Cmd + `+` / `-` / `0`: zoom the text (Ctrl+0 resets); the whole page never zooms
 - Ctrl/Cmd+F: find; Ctrl/Cmd+H: find and replace
 - F2 / F4: insert [inaudible] / [crosstalk] marker with the current time
 - Alt+↑ / Alt+↓: playback speed
+- Alt+M / Alt+A: Mark mode / Assign mode on/off (see "Mark and Assign")
 - Alt+R: review mode on/off (listen locked; pausing unlocks the editor with the caret at the playing line)
 - `[` / `]`: skip back/forward by the Skip value
 - Esc (in a text field): leave the editor so the shortcuts below work
@@ -99,11 +101,11 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 ## A-B loop (timestamp to timestamp)
 
-- `.loop-row` sits at the right end of the top bar (same line as Add and the title) and holds a Loop toggle (`#loopBtn`, key `L` outside text fields) and two selects, From (`#loopA`) and to (`#loopB`), filled by `refreshLoopOptions` from the transcript's timestamps. `#loopB` also offers "End of file" (`Infinity` in `loop.b`).
-- On first enable, From is the timestamp at or before the playhead and to is the next one. Changing a select while looping restarts at From.
+- `.loop-row` sits at the right end of the top bar (same line as Add and the title) and holds a Loop toggle (`#loopBtn`, key `L` outside text fields) and two **text boxes** (ids `#loopA` From and `#loopB` to; the JS names are still `loopASel` / `loopBSel`). The user types the times: `h:mm:ss`, `m:ss`, plain seconds with decimals (`80`, `1:20.5`), `1h2m3s`, or `+30` / `-5` from the playhead (it reuses `parseTimeInput`, the same parser as the click-the-clock jump). The To box also accepts `end` (`Infinity` in `loop.b`). The transcript's timestamps are offered as suggestions through two `<datalist>`s filled by `refreshLoopOptions` (stored in `loopTimes`); picking one just types it. A box that is not a time gets a red border (`.bad`) and `loop.a` / `loop.b` stay null. After a change the boxes are rewritten to what was understood (`normalizeLoopBoxes`, `fmtLoop`, which keeps up to 2 decimals), so `+30` becomes a fixed time. The loop no longer needs transcript timestamps, only a loaded file; opening another file clears the boxes and switches the loop off (`loopFileKey`).
+- On first enable with both boxes empty and the transcript has timestamps, From is the timestamp at or before the playhead and to is the next one; with no timestamps it asks the user to type a start and an end time. Changing a box while looping restarts at From.
 - `loopTick` (requestAnimationFrame, only while playing and looping) seeks back to From when playback reaches the end point. Seeks more than 1 s past the end are left alone so the user can leave the loop; the `ended` event handles "End of file".
 - The looped range is drawn on the timeline by `tlDraw`. A `.loop-band` is still maintained inside the hidden `#seekMarks`; it is not visible.
-- The loop turns off by itself if the transcript no longer has timestamps.
+- The loop turns off by itself when the file is unloaded or another file is opened.
 
 ## Current-line highlight
 
@@ -176,6 +178,15 @@ Adding a file is the first thing a user must do, so it never requires opening th
 
 - The **⚡ Phrases** button (speaker bar) opens a dialog with one `short = full text` per line (short forms: letters/numbers, up to 12; `#` lines ignored; max 300), saved raw in `localStorage` as `ampm.phrases`. Typing a short form followed by space or `. , ; ? !` expands it (`input` listener; `:` is deliberately excluded because the speaker autocomplete uses it). A capitalised short form capitalises the expansion. Uses `execCommand('insertText')` (`phraseBusy` guards re-entry), so Ctrl+Z undoes it.
 
+## Mark and Assign (turns first, speakers after)
+
+For a script that is already typed (no timestamps, speakers missing). Two header buttons, **Mark** (`#markBtn`, Alt+M) and **Assign** (`#assignBtn`, Alt+A), start two passes. Both make the textarea `readOnly` (`.editor-wrap.marking`) and blur it, so plain keys are free and Space / arrows keep controlling playback; Esc or the bar's Done button leaves the mode and puts the caret on the current line. Starting one turns Review off and starting Review ends them. `reviewLocked()` also returns true in these modes, so `insertTimestamp`, `insertSpeaker`, `insertMarker` and Replace refuse to edit. A slim `.mode-bar` (created in JS above the editor, only visible in a mode) shows the keys, a counter, and one number box (Lead for Mark, Clip for Assign). `syncTranscriptToTime` returns early in these modes so follow-playback does not scroll away, and `updateLineHighlight` draws the highlight bar on `modePos` (the line waiting for a mark).
+
+- **Pass 1, Mark:** starts at the first unstamped, non-empty line at or after the caret (else from the top). Lines that already have a stamp are skipped, so it can resume. **N** = a new speaker starts on the highlighted line; **S** = the same speaker carries on. Both put `[h:mm:ss] ` on the line at `currentTime - markLead` (default 0.4 s, 0 to 3, saved as `ampm.markLead`). N also adds the empty speaker slot `MARK_SLOT` (`[?]: `) after the stamp, except when the line already begins with a speaker label (`LABELED_RE` for upper-case names, or one of the saved `speakers`), which is just stamped. Then the highlight moves to the next unstamped line. **Backspace** undoes the last mark (`markHist`, refuses if the line was edited since), **R** replays 3 s. When no line is left it exits and says so. Text is changed with `setRangeText` plus a synthetic `input` event (autosave, timeline markers and counts update); this does not go through the browser's undo stack, which is why Backspace has its own history.
+- **Pass 2, Assign:** starts at the first slot line (`SLOT_RE`: optional stamp, then `[?]:`) at or after the caret. Entering a slot seeks to that line's stamp and plays `assignClip` seconds (default 4, 1 to 15, saved as `ampm.assignClip`; a `timeupdate` listener pauses at `assignStopAt`). **1-9** (also Alt+1-9) replaces `[?]:` with that speaker's name (`speakers[n-1]`) and moves to the next slot; an empty speaker says so and stays. **N** or Down skips to the next slot, Shift+N or Up goes back, **R** replays the clip, **Backspace** undoes the last assignment (`assignHist`). When no slot is left it exits with "All speakers assigned". The counter shows how many slots are left.
+- Continuation lines (marked with S) never get a slot, so a speaker's name appears only where the turn starts. A leftover `[?]:` is visible in exports, which is a deliberate reminder.
+- Keys are handled by a capture-phase `keydown` listener (like Alt+R) that ignores `INPUT` and `SELECT` targets, so typing in the Lead / Clip box or the loop boxes never marks or assigns. A `video` `emptied` event (another file loaded) leaves the mode.
+
 ## Review mode (listen with the keyboard, fix on pause)
 
 - Header button **Review** (`#reviewBtn`, `aria-pressed`) or **Alt+R** toggles `reviewOn` via `setReview(on, announce)`. Not saved: it always starts off. The old line-by-line stepping (`N` / Shift+`N` / `R`, the 12 s clip and its `reviewTick`) was **removed on purpose**; do not bring it back.
@@ -198,6 +209,7 @@ Adding a file is the first thing a user must do, so it never requires opening th
 ## Time readout
 
 - `.tl-time` (current / total, in the timeline header) is large and high-contrast on a panel chip (19 px, total 15 px muted). In review mode `reviewOn` also sets `html.reviewing`, which makes it 30 px with an accent frame (`html.reviewing .tl-time`), since the clock is the thing watched while reviewing. Keep it readable in both themes (only `--ink`, `--muted`, `--panel`, `--accent` are used).
+- **Type a time to jump:** the current time (`#currentTime`, a focusable `role="button"` span) is editable. Click it, press Enter/Space on it, or press **G** (outside text fields) or **Ctrl/Cmd+G** (anywhere) and `openTimeEdit()` swaps it for a small input (`.time-edit`) holding the current time, selected. **Enter** jumps (`video.currentTime = t`, playing state kept, the editor follows through the normal `seeked` sync) and puts focus back where it was; **Esc** or clicking away cancels; an unreadable entry turns the outline red and shows a hint. `parseTimeInput(raw, now, dur)` accepts `h:mm:ss`, `m:ss` (minutes may exceed 59, seconds may not), plain seconds, `1h2m3s` / `1m30s`, and `+` / `-` offsets from the current time (`+30`, `-1:00`); results are clamped to 0…duration. The input's `keydown` stops propagation so `[` / `]`, Space and the other playback keys are not triggered while typing. Needs a loaded file (otherwise a toast says to add one).
 
 ## Keep media on this device (IndexedDB)
 
@@ -232,7 +244,7 @@ Windows is the primary target. Things to check when changing UI:
 - Plain JavaScript only; no frameworks or build tooling.
 - Never put file names into `innerHTML`; use `textContent` (`renderLibrary` already does).
 - Don't add network calls or upload media.
-- Keep the UI minimal (the Review and Aa buttons are the only additions to the transcript header): don't re-add search, folders, previous/next, replay, extra skip/timestamp buttons, a visible seek bar, or a status/footer row that takes space, unless asked. Vertical space belongs to the transcript editor.
+- Keep the UI minimal (Mark, Assign, Review and Aa are the only additions to the transcript header; Mark and Assign were added on request): don't re-add search, folders, previous/next, replay, extra skip/timestamp buttons, a visible seek bar, or a status/footer row that takes space, unless asked. Vertical space belongs to the transcript editor.
 
 ## Testing checklist
 
@@ -255,10 +267,12 @@ Windows is the primary target. Things to check when changing UI:
 - Press F2 / F4 while playing: markers appear with the current time. Ctrl+F, click "inaudible": the editor jumps to the marker and the audio to its time. Replace one and Replace All (one Ctrl+Z undoes All).
 - Bottom-left of the editor shows word count and "typed to X of Y (Z%)".
 - Add `tnx = Thank you.` under ⚡ Phrases, type `tnx ` in the editor: it expands; Ctrl+Z undoes it.
+- Mark / Assign: paste a script with no timestamps, load the audio, click **Mark**, press Space, then N / S as lines start: each line gets a time (N lines also `[?]:`), the highlight steps down, Backspace undoes. When done click **Assign**: it plays the start of each turn; press 1-9 to fill the speaker; the counter drops to 0.
 - Review: load a file with timestamped lines, click **Review** (or Alt+R). The editor locks (typing, Ctrl+Enter, Alt+1…9, F2/F4, Replace do nothing and show the status note). Press Space: it plays continuously and the highlight follows. Press Space again: the editor unlocks, the caret sits at the start of the line that was playing (after its timestamp), you can type or use the arrow keys. Shift+Space resumes (with the Rewind jump), the editor stays editable and the caret follows the audio; typing mid-line does not get the caret yanked away for 1.5 s. Alt+R turns review off.
 - Open **Aa**: change size and spacing; the editor text, the highlight bar and follow-playback scrolling stay aligned (also with wrapped lines). Reload: the setting is kept. Reset returns to 13.5 px / 1.65.
 - Press the keyboard media keys or headset buttons while a file has played: play/pause, seek, and previous/next track jumps between transcript timestamps; the OS media overlay shows the file name.
 - Hold Ctrl and roll the wheel over the editor (or press Ctrl + `+` / `-` / `0` anywhere): only the text zooms, the page does not (also check Ctrl+wheel over the timeline and the player, and pinch on a phone); the size matches the Aa slider and survives a reload. On a phone, pinch with two fingers on the editor.
 - Switch Review mode on (Alt+R): the time at the left of the timeline header becomes big with an accent frame; off again returns it to normal size.
 - Add a file, reload the page (and discard the tab from the browser's tab menu): the file is back in the library with the same transcript and opens ready to play. Untick **Keep on this device**, add another: it shows no "saved" tag and is gone after a reload. Remove a file with the ✕: it leaves the list and the device, and its transcript is still there when the file is added again.
+- Click the current time, type `1:56:48` (also `56:48`, `90`, `1m30s`, `+30`, `-1:00`) and press Enter: playback jumps there and the editor scrolls to that line; Esc cancels; gibberish turns the box red. Press G (or Ctrl+G inside the editor) to open it from the keyboard.
 - Verify dark mode and the mobile layout.
